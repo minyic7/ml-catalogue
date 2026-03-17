@@ -4,7 +4,11 @@ A machine learning model catalogue application.
 
 ## Live Demo
 
-The app is deployed on a Mac Mini and exposed via a Cloudflare Quick Tunnel. The public URL is ephemeral and changes on each deploy/restart. To find the current URL, run on the Mac Mini:
+The app is deployed on a Mac Mini and exposed via a Cloudflare Quick Tunnel. The public URL is ephemeral and changes on each deploy/restart.
+
+**Current URL:** https://neil-lou-asin-licensed.trycloudflare.com
+
+To find the current URL, run on the Mac Mini:
 
 ```bash
 docker compose logs cloudflared
@@ -13,14 +17,14 @@ docker compose logs cloudflared
 ## Tech Stack
 
 - **Frontend:** React 19, TypeScript, Vite
-- **Backend:** Python 3.12, FastAPI, uv
+- **Backend:** Python 3.13, FastAPI, uv
 - **Tooling:** ESLint, Prettier, Ruff, pnpm workspaces
 
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/) (LTS)
 - [pnpm](https://pnpm.io/)
-- [Python 3.12](https://www.python.org/)
+- [Python 3.13](https://www.python.org/)
 - [uv](https://docs.astral.sh/uv/)
 
 ## Quick Start

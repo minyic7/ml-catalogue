@@ -6,7 +6,7 @@ import { MarkdownRenderer } from "../components/MarkdownRenderer";
 import { OutputArea, type OutputData } from "../components/OutputArea";
 import { RunButton, type RunMode, type DeviceType } from "../components/RunButton";
 import { executeCode } from "../api/execute";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 const TIMEOUT_LIMITS: Record<RunMode, number> = {
   quick: 30,
   full: 120,
@@ -178,53 +178,33 @@ export default function PageView() {
       </nav>
 
       {hasContent ? (
-        page.codeSnippet ? (
-          <Tabs defaultValue="explanation" className="w-full">
-            <TabsList className="mb-4">
-              <TabsTrigger value="explanation">Explanation</TabsTrigger>
-              <TabsTrigger value="code">Code &amp; Output</TabsTrigger>
-            </TabsList>
-            <TabsContent value="explanation">
-              <div className="space-y-6">
-                {page.markdownContent ? (
-                  <MarkdownRenderer content={page.markdownContent} />
-                ) : (
-                  <p className="text-muted-foreground italic">
-                    No explanation available for this page.
-                  </p>
-                )}
-              </div>
-            </TabsContent>
-            <TabsContent value="code">
-              <div className="space-y-6">
-                <CodeBlock
-                  code={page.codeSnippet}
-                  language={page.codeLanguage}
-                />
-                <RunButton
-                  onRun={handleRun}
-                  onCancel={handleCancel}
-                  isLoading={isLoading}
-                  elapsedSeconds={elapsedSeconds}
-                  timeoutWarning={timeoutWarning}
-                  showDeviceToggle={page.isDeepLearning}
-                />
-                <OutputArea output={output} />
-                {executionTime !== null && (
-                  <p className="text-xs text-muted-foreground">
-                    Completed in {(executionTime / 1000).toFixed(1)}s
-                  </p>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
-        ) : (
-          <div className="space-y-6">
-            {page.markdownContent && (
-              <MarkdownRenderer content={page.markdownContent} />
-            )}
-          </div>
-        )
+        <div className="space-y-6">
+          {page.markdownContent && (
+            <MarkdownRenderer content={page.markdownContent} />
+          )}
+          {page.codeSnippet && (
+            <>
+              <CodeBlock
+                code={page.codeSnippet}
+                language={page.codeLanguage}
+              />
+              <RunButton
+                onRun={handleRun}
+                onCancel={handleCancel}
+                isLoading={isLoading}
+                elapsedSeconds={elapsedSeconds}
+                timeoutWarning={timeoutWarning}
+                showDeviceToggle={page.isDeepLearning}
+              />
+              <OutputArea output={output} />
+              {executionTime !== null && (
+                <p className="text-xs text-muted-foreground">
+                  Completed in {(executionTime / 1000).toFixed(1)}s
+                </p>
+              )}
+            </>
+          )}
+        </div>
       ) : (
         <>
           <h2 className="text-2xl font-bold">{page.title}</h2>

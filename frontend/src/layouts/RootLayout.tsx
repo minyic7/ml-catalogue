@@ -1,5 +1,7 @@
 import { Outlet } from 'react-router-dom';
 
+import Sidebar from '@/components/Sidebar';
+
 export default function RootLayout() {
   return (
     <div className="flex h-screen flex-col">
@@ -9,7 +11,9 @@ export default function RootLayout() {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-64 shrink-0 border-r" />
+        <aside className="w-64 shrink-0 overflow-y-auto border-r">
+          <Sidebar />
+        </aside>
 
         <main className="flex-1 overflow-auto p-6">
           <Outlet />

@@ -38,7 +38,5 @@ def infinite_loop_snippet():
 @pytest.fixture()
 def matplotlib_snippet():
     return (
-        "import matplotlib.pyplot as plt\n"
-        "plt.plot([1, 2, 3], [4, 5, 6])\n"
-        "plt.show()\n"
+        "import matplotlib.pyplot as plt\nplt.plot([1, 2, 3], [4, 5, 6])\nplt.show()\n"
     )

@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Loader2, Play } from "lucide-react"
+import { Loader2, Play, Square } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -9,11 +9,21 @@ export type DeviceType = "cpu" | "mps"
 
 interface RunButtonProps {
   onRun: (mode: RunMode, device: DeviceType) => void
+  onCancel: () => void
   isLoading: boolean
+  elapsedSeconds: number
+  timeoutWarning: boolean
   showDeviceToggle?: boolean
 }
 
-export function RunButton({ onRun, isLoading, showDeviceToggle = false }: RunButtonProps) {
+export function RunButton({
+  onRun,
+  onCancel,
+  isLoading,
+  elapsedSeconds,
+  timeoutWarning,
+  showDeviceToggle = false,
+}: RunButtonProps) {
   const [mode, setMode] = useState<RunMode>("quick")
   const [device, setDevice] = useState<DeviceType>("cpu")
 
@@ -29,8 +39,25 @@ export function RunButton({ onRun, isLoading, showDeviceToggle = false }: RunBut
         ) : (
           <Play className="size-4" />
         )}
-        {isLoading ? "Running…" : "Run"}
+        {isLoading ? `Running… ${elapsedSeconds}s` : "Run"}
       </Button>
+
+      {isLoading && (
+        <Button
+          onClick={onCancel}
+          variant="outline"
+          size="default"
+        >
+          <Square className="size-3" />
+          Cancel
+        </Button>
+      )}
+
+      {isLoading && timeoutWarning && (
+        <span className="text-sm text-amber-600 dark:text-amber-400">
+          Execution is taking longer than usual…
+        </span>
+      )}
 
       <ToggleGroup
         type="single"

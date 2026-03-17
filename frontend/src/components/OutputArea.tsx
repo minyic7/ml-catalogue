@@ -4,6 +4,7 @@ export interface OutputData {
   stdout?: string
   charts?: string[]
   error?: string
+  warning?: string
 }
 
 interface OutputAreaProps {
@@ -43,6 +44,17 @@ export function OutputArea({ output }: OutputAreaProps) {
             />
           ))}
         </div>
+      )}
+
+      {output.warning && (
+        <pre
+          className={cn(
+            "overflow-x-auto rounded-lg border border-amber-400/50 bg-amber-50 p-4 dark:bg-amber-950/20",
+            "font-mono text-sm text-amber-700 dark:text-amber-400"
+          )}
+        >
+          {output.warning}
+        </pre>
       )}
 
       {output.error && (

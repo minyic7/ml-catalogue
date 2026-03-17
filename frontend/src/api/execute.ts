@@ -9,11 +9,14 @@ export async function executeCode(params: {
   code: string
   mode: "quick" | "full"
   device: "cpu" | "mps"
+  signal?: AbortSignal
 }): Promise<ExecutionResult> {
+  const { signal, ...body } = params
   const response = await fetch("/api/execute", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params),
+    body: JSON.stringify(body),
+    signal,
   })
 
   if (!response.ok) {

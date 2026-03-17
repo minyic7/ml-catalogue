@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { CONTENT_STRUCTURE } from "../config/content";
 import { CodeBlock } from "../components/CodeBlock";
@@ -7,6 +7,16 @@ import { OutputArea, type OutputData } from "../components/OutputArea";
 import { RunButton, type RunMode, type DeviceType } from "../components/RunButton";
 import { executeCode } from "../api/execute";
 import { Skeleton } from "@/components/ui/skeleton";
+
+const TIMEOUT_LIMITS: Record<RunMode, number> = {
+  quick: 30,
+  full: 120,
+};
+
+const WARNING_THRESHOLDS: Record<RunMode, number> = {
+  quick: 20,
+  full: 90,
+};
 
 function PageSkeleton() {
   return (
@@ -43,23 +53,80 @@ export default function PageView() {
   const [isLoading, setIsLoading] = useState(false);
   const [output, setOutput] = useState<OutputData | null>(null);
   const [executionTime, setExecutionTime] = useState<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [timeoutWarning, setTimeoutWarning] = useState(false);
+
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const modeRef = useRef<RunMode>("quick");
+
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      clearTimer();
+      abortControllerRef.current?.abort();
+    };
+  }, [clearTimer]);
 
   const level = CONTENT_STRUCTURE.find((l) => l.slug === levelSlug);
   const chapter = level?.chapters.find((c) => c.slug === chapterSlug);
   const page = chapter?.pages.find((p) => p.slug === pageSlug);
 
+  const handleCancel = useCallback(() => {
+    abortControllerRef.current?.abort();
+    clearTimer();
+    setIsLoading(false);
+    setElapsedSeconds(0);
+    setTimeoutWarning(false);
+    setOutput({ warning: "Execution cancelled." });
+  }, [clearTimer]);
+
   const handleRun = useCallback(
     async (mode: RunMode, device: DeviceType) => {
       if (!page?.codeSnippet) return;
+
+      // Abort any previous execution
+      abortControllerRef.current?.abort();
+      clearTimer();
+
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+      modeRef.current = mode;
+
       setIsLoading(true);
       setOutput(null);
       setExecutionTime(null);
+      setElapsedSeconds(0);
+      setTimeoutWarning(false);
+
+      // Start elapsed timer
+      const startTime = Date.now();
+      timerRef.current = setInterval(() => {
+        const seconds = Math.floor((Date.now() - startTime) / 1000);
+        setElapsedSeconds(seconds);
+
+        if (seconds >= WARNING_THRESHOLDS[modeRef.current]) {
+          setTimeoutWarning(true);
+        }
+
+        if (seconds >= TIMEOUT_LIMITS[modeRef.current]) {
+          controller.abort();
+        }
+      }, 1000);
 
       try {
         const result = await executeCode({
           code: page.codeSnippet,
           mode,
           device,
+          signal: controller.signal,
         });
         setOutput({
           stdout: result.stdout || undefined,
@@ -68,14 +135,29 @@ export default function PageView() {
         });
         setExecutionTime(result.execution_time_ms);
       } catch (err) {
-        setOutput({
-          error: err instanceof Error ? err.message : "An unexpected error occurred",
-        });
+        if (controller.signal.aborted) {
+          const limit = TIMEOUT_LIMITS[mode];
+          const elapsed = Math.floor((Date.now() - startTime) / 1000);
+          if (elapsed >= limit) {
+            setOutput({
+              warning: `Execution timed out after ${limit}s. Try using ⚡ Quick mode for a smaller dataset.`,
+            });
+          } else {
+            setOutput({ warning: "Execution cancelled." });
+          }
+        } else {
+          setOutput({
+            error: err instanceof Error ? err.message : "An unexpected error occurred",
+          });
+        }
       } finally {
+        clearTimer();
         setIsLoading(false);
+        setElapsedSeconds(0);
+        setTimeoutWarning(false);
       }
     },
-    [page?.codeSnippet],
+    [page?.codeSnippet, clearTimer],
   );
 
   if (!level) return <Navigate to="/404" replace />;
@@ -139,7 +221,10 @@ export default function PageView() {
               />
               <RunButton
                 onRun={handleRun}
+                onCancel={handleCancel}
                 isLoading={isLoading}
+                elapsedSeconds={elapsedSeconds}
+                timeoutWarning={timeoutWarning}
                 showDeviceToggle={page.isDeepLearning}
               />
               <OutputArea output={output} />

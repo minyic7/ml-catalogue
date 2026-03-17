@@ -92,7 +92,7 @@ function ChatDialog({
       setPastedImage(initialContext.data)
     }
     // For text, pre-fill input with a question about the highlighted snippet
-    if (initialContext.type === "text") {
+    if (initialContext.type === "text" && initialContext.data) {
       setInput(`Explain this:\n\n> ${initialContext.data}`)
     }
   }, [isOpen, initialContext])
@@ -283,12 +283,12 @@ function ChatDialog({
       </div>
 
       {/* ---- Source context indicator ---- */}
-      {initialContext && (
+      {initialContext && (initialContext.data || initialContext.label) && (
         <div className="border-b px-4 py-2">
           <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
             {initialContext.label ? `From: ${initialContext.label}` : "Context"}
           </p>
-          {initialContext.type === "text" && (
+          {initialContext.type === "text" && initialContext.data && (
             <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground italic">
               &ldquo;{initialContext.data}&rdquo;
             </p>

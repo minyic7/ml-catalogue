@@ -10,6 +10,8 @@ const DEFAULT_POSITION = { x: -80, y: -80 } // offset from bottom-right
 interface ToolboxProps {
   onScreenshotClick?: () => void
   onHighlightClick?: () => void
+  /** When true, the highlight/ask button shows an active visual indicator */
+  hasSelection?: boolean
   className?: string
 }
 
@@ -54,7 +56,7 @@ function clampPosition(
   return { left: clampedLeft, top: clampedTop }
 }
 
-function Toolbox({ onScreenshotClick, onHighlightClick, className }: ToolboxProps) {
+function Toolbox({ onScreenshotClick, onHighlightClick, hasSelection, className }: ToolboxProps) {
   const [expanded, setExpanded] = React.useState(false)
   const [position, setPosition] = React.useState(loadPosition)
   const [isDragging, setIsDragging] = React.useState(false)
@@ -176,15 +178,26 @@ function Toolbox({ onScreenshotClick, onHighlightClick, className }: ToolboxProp
           expanded ? "pointer-events-none scale-0 opacity-0" : "scale-100 opacity-100"
         )}
       >
-        <Button
-          variant="default"
-          size="icon-lg"
-          className="size-12 rounded-full shadow-lg"
-          onClick={handleToggle}
-          aria-label="Open QA assistant toolbox"
-        >
-          <MessageCircle className="size-5" />
-        </Button>
+        <div className="relative">
+          <Button
+            variant="default"
+            size="icon-lg"
+            className={cn(
+              "size-12 rounded-full shadow-lg",
+              hasSelection && "ring-2 ring-offset-2 ring-primary"
+            )}
+            onClick={handleToggle}
+            aria-label="Open QA assistant toolbox"
+          >
+            <MessageCircle className="size-5" />
+          </Button>
+          {hasSelection && (
+            <span className="absolute -top-0.5 -right-0.5 flex size-3">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
+              <span className="relative inline-flex size-3 rounded-full bg-primary" />
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Expanded state — tool buttons panel */}
@@ -210,8 +223,18 @@ function Toolbox({ onScreenshotClick, onHighlightClick, className }: ToolboxProp
             size="icon"
             onClick={onHighlightClick}
             aria-label="Highlight and ask"
+            className={cn(
+              hasSelection &&
+                "ring-2 ring-primary bg-primary/10 text-primary"
+            )}
           >
             <TextSelect className="size-4" />
+            {hasSelection && (
+              <span className="absolute -top-1 -right-1 flex size-2.5">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
+                <span className="relative inline-flex size-2.5 rounded-full bg-primary" />
+              </span>
+            )}
           </Button>
           <div className="mx-0.5 h-5 w-px bg-border dark:bg-input" />
           <Button

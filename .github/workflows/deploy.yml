@@ -6,6 +6,9 @@
 #   DEPLOY_SSH_KEY     — SSH private key for Mac Mini authentication
 #   DEPLOY_USER        — SSH username on the Mac Mini
 #   DEPLOY_HOST        — Tailscale IP of the Mac Mini (100.107.201.81)
+#
+# Required GitHub Variables:
+#   DEPLOY_PATH        — Deployment directory on the Mac Mini
 
 name: Deploy
 
@@ -23,7 +26,6 @@ concurrency:
 
 env:
   IMAGE: ghcr.io/minyic7/ml-catalogue
-  DEPLOY_PATH: /Users/minyic/ml-catalogue
 
 jobs:
   build:
@@ -82,23 +84,20 @@ jobs:
 
       - name: Copy compose files
         run: |
-          scp -o StrictHostKeyChecking=no \
-            docker-compose.yml docker-compose.prod.yml \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ env.DEPLOY_PATH }}/
+          scp docker-compose.yml docker-compose.prod.yml \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ vars.DEPLOY_PATH }}/
 
       - name: Deploy
         run: |
-          ssh -o StrictHostKeyChecking=no \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-            "cd ${{ env.DEPLOY_PATH }} && \
+          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+            "cd ${{ vars.DEPLOY_PATH }} && \
              docker compose -f docker-compose.yml -f docker-compose.prod.yml pull && \
              docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans --force-recreate"
 
       - name: Health check
         run: |
           for i in $(seq 1 10); do
-            if ssh -o StrictHostKeyChecking=no \
-              ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+            if ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
               "curl -sf http://localhost:8000/api/health"; then
               echo ""
               echo "Health check passed on attempt $i"
@@ -109,3 +108,7 @@ jobs:
           done
           echo "Health check failed after 10 attempts"
           exit 1
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519

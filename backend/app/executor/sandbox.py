@@ -4,15 +4,20 @@ Runs user-supplied Python snippets in an isolated subprocess with resource
 limits, captures stdout/stderr and any matplotlib charts produced.
 """
 
+import asyncio
 import json
 import os
 import platform
-import resource
 import shutil
 import subprocess
 import tempfile
 import time
 from pathlib import Path
+
+if platform.system() == "Linux":
+    import resource
+else:
+    resource = None  # type: ignore[assignment]
 
 try:
     from app.executor.models import ExecutionResult
@@ -60,7 +65,7 @@ async def run_sandboxed(
         code: Python source code to execute.
         timeout: Maximum wall-clock seconds before the process is killed.
         env: Optional extra environment variables for the subprocess.
-        memory_limit: Maximum address-space in bytes (default 512 MB).
+        memory_limit: Maximum address-space in bytes (default 1 GB).
 
     Returns:
         ExecutionResult with stdout, stderr, error, charts, and timing.
@@ -89,53 +94,56 @@ async def run_sandboxed(
     if env:
         proc_env.update(env)
 
-    start = time.perf_counter()
-    try:
+    def _execute() -> ExecutionResult:
+        start = time.perf_counter()
         try:
-            result = subprocess.run(
-                ["python", script_path],
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                cwd=tmp_dir,
-                env=proc_env,
-                preexec_fn=_build_preexec(memory_limit),
-            )
-        except subprocess.TimeoutExpired:
+            try:
+                result = subprocess.run(
+                    ["python", script_path],
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout,
+                    cwd=tmp_dir,
+                    env=proc_env,
+                    preexec_fn=_build_preexec(memory_limit),
+                )
+            except subprocess.TimeoutExpired:
+                elapsed_ms = (time.perf_counter() - start) * 1000
+                return ExecutionResult(
+                    stdout="",
+                    stderr="",
+                    error=f"Execution timed out after {timeout}s",
+                    charts=[],
+                    execution_time_ms=round(elapsed_ms, 2),
+                )
+
             elapsed_ms = (time.perf_counter() - start) * 1000
+
+            stdout = result.stdout or ""
+            stderr = result.stderr or ""
+
+            # Detect traceback in stderr
+            error: str | None = None
+            if stderr and ("Traceback" in stderr or result.returncode != 0):
+                error = stderr.strip()
+
+            # Read captured charts
+            charts: list[str] = []
+            if os.path.isfile(chart_manifest):
+                try:
+                    with open(chart_manifest) as f:
+                        charts = json.load(f)
+                except (json.JSONDecodeError, OSError):
+                    pass
+
             return ExecutionResult(
-                stdout="",
-                stderr="",
-                error=f"Execution timed out after {timeout}s",
-                charts=[],
+                stdout=stdout,
+                stderr=stderr,
+                error=error,
+                charts=charts,
                 execution_time_ms=round(elapsed_ms, 2),
             )
+        finally:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
-        elapsed_ms = (time.perf_counter() - start) * 1000
-
-        stdout = result.stdout or ""
-        stderr = result.stderr or ""
-
-        # Detect traceback in stderr
-        error: str | None = None
-        if stderr and ("Traceback" in stderr or result.returncode != 0):
-            error = stderr.strip()
-
-        # Read captured charts
-        charts: list[str] = []
-        if os.path.isfile(chart_manifest):
-            try:
-                with open(chart_manifest) as f:
-                    charts = json.load(f)
-            except (json.JSONDecodeError, OSError):
-                pass
-
-        return ExecutionResult(
-            stdout=stdout,
-            stderr=stderr,
-            error=error,
-            charts=charts,
-            execution_time_ms=round(elapsed_ms, 2),
-        )
-    finally:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+    return await asyncio.to_thread(_execute)

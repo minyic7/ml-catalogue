@@ -162,25 +162,34 @@ class _SecurityVisitor(ast.NodeVisitor):
 
     # -- __import__() calls ---------------------------------------------
 
-    # Names that are always blocked when called (as function or method)
-    _BLOCKED_CALL_NAMES: frozenset[str] = frozenset(
+    # Names blocked as bare calls: eval(), exec(), compile(), __import__()
+    _BLOCKED_BARE_CALLS: frozenset[str] = frozenset(
         {"eval", "exec", "compile", "__import__"}
+    )
+
+    # Names blocked as method calls — only truly dangerous ones that have no
+    # legitimate library usage (e.g. builtins.exec()).  compile/eval are
+    # excluded because re.compile(), pd.eval(), etc. are legitimate.
+    _BLOCKED_METHOD_CALLS: frozenset[str] = frozenset(
+        {"exec", "__import__"}
     )
 
     def visit_Call(self, node: ast.Call) -> None:  # noqa: N802
         func = node.func
 
         # Direct calls: eval(), exec(), compile(), __import__()
-        if isinstance(func, ast.Name) and func.id in self._BLOCKED_CALL_NAMES:
+        if isinstance(func, ast.Name) and func.id in self._BLOCKED_BARE_CALLS:
             self.violations.append(
                 f"Blocked call: '{func.id}()' is not allowed in the sandbox "
                 f"(line {node.lineno})"
             )
 
-        # Method-call style: builtins.exec(), foo.eval(), etc.
+        # Method-call style: builtins.exec(), obj.__import__(), etc.
+        # Only block exec/__import__ — compile/eval have legitimate library
+        # uses (re.compile, pd.eval).
         if (
             isinstance(func, ast.Attribute)
-            and func.attr in self._BLOCKED_CALL_NAMES
+            and func.attr in self._BLOCKED_METHOD_CALLS
         ):
             self.violations.append(
                 f"Blocked call: '{func.attr}()' via attribute access is not "
@@ -194,8 +203,15 @@ class _SecurityVisitor(ast.NodeVisitor):
                 f"(line {node.lineno})"
             )
 
-        # open() with write mode
+        # open() / io.open() with write mode
         if isinstance(func, ast.Name) and func.id == "open":
+            self._check_open_write(node)
+        elif (
+            isinstance(func, ast.Attribute)
+            and func.attr == "open"
+            and isinstance(func.value, ast.Name)
+            and func.value.id == "io"
+        ):
             self._check_open_write(node)
 
         self.generic_visit(node)

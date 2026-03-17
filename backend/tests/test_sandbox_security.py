@@ -137,18 +137,25 @@ class TestDangerousCalls:
         violations = check_code_security('open("data.csv")')
         assert violations == []
 
+    def test_io_open_write_blocked(self):
+        """io.open() with write mode must be caught like built-in open()."""
+        violations = check_code_security('import io\nio.open("/tmp/x", "w")')
+        assert any("write mode" in v for v in violations)
+
     def test_method_call_exec_blocked(self):
         """builtins.exec() style calls must be caught."""
         violations = check_code_security('builtins.exec("print(1)")')
         assert any("exec()" in v for v in violations)
 
-    def test_method_call_eval_blocked(self):
-        violations = check_code_security('foo.eval("1+1")')
-        assert any("eval()" in v for v in violations)
+    def test_method_call_eval_allowed_on_library(self):
+        """pd.eval() and similar library method calls must not be blocked."""
+        violations = check_code_security('pd.eval("a + b")')
+        assert violations == []
 
-    def test_method_call_compile_blocked(self):
-        violations = check_code_security('x.compile("pass", "<>", "exec")')
-        assert any("compile()" in v for v in violations)
+    def test_method_call_compile_allowed_on_library(self):
+        """re.compile() and similar library method calls must not be blocked."""
+        violations = check_code_security('re.compile(r"\\d+")')
+        assert violations == []
 
     def test_getattr_blocked(self):
         violations = check_code_security('getattr(obj, "__globals__")')

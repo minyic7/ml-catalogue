@@ -48,7 +48,7 @@ export async function sendMessage(params: {
   signal?: AbortSignal
 }): Promise<ChatResponse> {
   const { signal, ...rest } = params
-  const response = await fetch("/api/chat", {
+  const response = await fetch(`${import.meta.env.BASE_URL}api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -71,7 +71,7 @@ export async function sendMessage(params: {
 export async function fetchContextUsage(
   sessionId: string
 ): Promise<ContextUsageResponse> {
-  const response = await fetch(`/api/chat/context-usage/${sessionId}`)
+  const response = await fetch(`${import.meta.env.BASE_URL}api/chat/context-usage/${sessionId}`)
   if (!response.ok) {
     throw new Error(`Context usage fetch failed (${response.status})`)
   }
@@ -81,7 +81,7 @@ export async function fetchContextUsage(
 export async function compactHistory(
   sessionId: string
 ): Promise<CompactResponse> {
-  const response = await fetch("/api/chat/compact", {
+  const response = await fetch(`${import.meta.env.BASE_URL}api/chat/compact`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session_id: sessionId }),

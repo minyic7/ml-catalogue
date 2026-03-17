@@ -4,8 +4,28 @@
 # Node
 node_modules/
 dist/
+*.tsbuildinfo
 
 # Python
 __pycache__/
 *.pyc
+*.pyo
 .venv/
+*.egg-info/
+.eggs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Env
+.env
+.env.local
+.env.*.local

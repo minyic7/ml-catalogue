@@ -9,7 +9,11 @@ import {
 import { CONTENT_STRUCTURE } from "@/config/content";
 import { cn } from "@/lib/utils";
 
-export default function Sidebar() {
+export default function Sidebar({
+  onNavigate,
+}: {
+  onNavigate?: () => void;
+}) {
   const { pathname } = useLocation();
 
   // Track which levels and chapters are open.
@@ -65,6 +69,7 @@ export default function Sidebar() {
                         <Link
                           key={page.slug}
                           to={href}
+                          onClick={onNavigate}
                           className={cn(
                             "block py-1.5 pl-10 pr-4 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
                             isActive &&

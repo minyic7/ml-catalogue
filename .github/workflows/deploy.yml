@@ -103,7 +103,7 @@ jobs:
       - name: Prune old images
         run: |
           ssh deploy-target \
-            "docker image prune -f"
+            "export PATH=/usr/local/bin:\$PATH && docker image prune -f"
 
       - name: Health check
         run: |

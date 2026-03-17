@@ -4,15 +4,9 @@ A machine learning model catalogue application.
 
 ## Live Demo
 
-The app is deployed on a Mac Mini and exposed via a Cloudflare Quick Tunnel. The public URL is ephemeral and changes on each deploy/restart.
+The app is deployed on a Mac Mini and exposed via Tailscale Funnel + nginx reverse proxy.
 
-**Current URL:** https://neil-lou-asin-licensed.trycloudflare.com
-
-To find the current URL, run on the Mac Mini:
-
-```bash
-docker compose logs cloudflared
-```
+**URL:** https://minyis-mac-mini.tail564b26.ts.net/ml/
 
 ## Tech Stack
 
@@ -59,7 +53,7 @@ pnpm format     # Run Prettier (frontend) + Ruff format (backend)
 
 ## Deployment
 
-The app runs as a single Docker container on a Mac Mini (M4, ARM64), with a Cloudflare Quick Tunnel for public access.
+The app runs as a single Docker container on a Mac Mini (M4, ARM64), exposed via Tailscale Funnel + nginx reverse proxy under `/ml/`.
 
 ### Production deploy
 
@@ -67,11 +61,7 @@ The app runs as a single Docker container on a Mac Mini (M4, ARM64), with a Clou
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
-This starts the app container and a `cloudflared` container that creates a Quick Tunnel. The tunnel URL is logged in the cloudflared container stdout:
-
-```bash
-docker compose logs cloudflared
-```
+This starts the app container. nginx on the host reverse-proxies traffic from Tailscale Funnel to the container on port 8000.
 
 ### CI/CD
 
@@ -79,7 +69,7 @@ Pushing to `main` triggers a GitHub Actions workflow that:
 
 1. Builds a Docker image and pushes it to GHCR
 2. Deploys to the Mac Mini over Tailscale SSH
-3. The cloudflared container automatically provisions a new Quick Tunnel URL
+3. The app is served at https://minyis-mac-mini.tail564b26.ts.net/ml/ via Tailscale Funnel + nginx
 
 ## Project Structure
 

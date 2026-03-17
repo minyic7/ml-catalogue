@@ -1,0 +1,256 @@
+import os
+import time
+from typing import Any
+
+import anthropic
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
+
+router = APIRouter(prefix="/api/chat")
+
+# ---------------------------------------------------------------------------
+# In-memory conversation store with 7-day TTL
+# ---------------------------------------------------------------------------
+_SESSION_TTL = 7 * 24 * 3600  # 7 days in seconds
+
+# Each entry: {"messages": list[dict], "last_active": float}
+_sessions: dict[str, dict[str, Any]] = {}
+
+DEFAULT_MODEL = "claude-sonnet-4-20250514"
+MAX_CONTEXT_TOKENS = 200_000  # Claude Sonnet context window
+
+
+def _get_client() -> anthropic.Anthropic:
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured")
+    return anthropic.Anthropic(api_key=api_key)
+
+
+def _evict_expired() -> None:
+    """Remove sessions that have been inactive for longer than the TTL."""
+    now = time.time()
+    expired = [
+        sid for sid, data in _sessions.items()
+        if now - data["last_active"] > _SESSION_TTL
+    ]
+    for sid in expired:
+        del _sessions[sid]
+
+
+def _get_or_create_session(session_id: str) -> dict[str, Any]:
+    _evict_expired()
+    if session_id not in _sessions:
+        _sessions[session_id] = {"messages": [], "last_active": time.time()}
+    session = _sessions[session_id]
+    session["last_active"] = time.time()
+    return session
+
+
+def _estimate_tokens(messages: list[dict], system: str | None = None) -> int:
+    """Rough token estimate: ~4 chars per token."""
+    total_chars = 0
+    if system:
+        total_chars += len(system)
+    for msg in messages:
+        content = msg.get("content", "")
+        if isinstance(content, str):
+            total_chars += len(content)
+        elif isinstance(content, list):
+            for block in content:
+                if isinstance(block, dict):
+                    if block.get("type") == "text":
+                        total_chars += len(block.get("text", ""))
+                    elif block.get("type") == "image":
+                        # Base64 images use ~1 token per 750 pixels; estimate 1000 tokens
+                        total_chars += 4000
+    return total_chars // 4
+
+
+# ---------------------------------------------------------------------------
+# Request / Response models
+# ---------------------------------------------------------------------------
+
+class ChatRequest(BaseModel):
+    session_id: str = Field(min_length=1, max_length=256)
+    message: str = Field(min_length=1, max_length=100_000)
+    image: str | None = Field(default=None, description="Optional base64-encoded image")
+    page_context: str | None = Field(
+        default=None, description="Optional current page content for context"
+    )
+
+
+class ChatResponse(BaseModel):
+    response: str
+    session_id: str
+
+
+class CompactRequest(BaseModel):
+    session_id: str = Field(min_length=1, max_length=256)
+
+
+class CompactResponse(BaseModel):
+    session_id: str
+    original_messages: int
+    compacted_messages: int
+
+
+class ContextUsageResponse(BaseModel):
+    session_id: str
+    estimated_tokens: int
+    max_tokens: int
+    usage_percent: float
+    message_count: int
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+
+@router.post("", response_model=ChatResponse)
+async def chat(request: ChatRequest) -> ChatResponse:
+    """Send a message to Claude and get a response, with per-session history."""
+    client = _get_client()
+    session = _get_or_create_session(request.session_id)
+
+    # Build user message content
+    content: list[dict[str, Any]] = []
+
+    if request.image:
+        # Detect media type from base64 header or default to png
+        media_type = "image/png"
+        image_data = request.image
+        if request.image.startswith("data:"):
+            # Strip data URI prefix: "data:image/jpeg;base64,..."
+            header, image_data = request.image.split(",", 1)
+            if "image/jpeg" in header or "image/jpg" in header:
+                media_type = "image/jpeg"
+            elif "image/gif" in header:
+                media_type = "image/gif"
+            elif "image/webp" in header:
+                media_type = "image/webp"
+
+        content.append({
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": media_type,
+                "data": image_data,
+            },
+        })
+
+    content.append({"type": "text", "text": request.message})
+
+    # Add user message to history
+    session["messages"].append({"role": "user", "content": content})
+
+    # Build system prompt
+    system: str | None = None
+    if request.page_context:
+        system = (
+            "The user is currently viewing the following page content. "
+            "Use it as context when answering:\n\n"
+            f"{request.page_context}"
+        )
+
+    # Call Claude API
+    try:
+        api_response = client.messages.create(
+            model=DEFAULT_MODEL,
+            max_tokens=4096,
+            system=system or anthropic.NOT_GIVEN,
+            messages=session["messages"],
+        )
+    except anthropic.APIError as e:
+        # Remove the failed user message from history
+        session["messages"].pop()
+        raise HTTPException(status_code=502, detail=f"Claude API error: {e.message}")
+
+    assistant_text = api_response.content[0].text
+
+    # Add assistant response to history
+    session["messages"].append({"role": "assistant", "content": assistant_text})
+
+    return ChatResponse(response=assistant_text, session_id=request.session_id)
+
+
+@router.post("/compact", response_model=CompactResponse)
+async def compact(request: CompactRequest) -> CompactResponse:
+    """Summarise and compact the conversation history for a session."""
+    client = _get_client()
+
+    if request.session_id not in _sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session = _get_or_create_session(request.session_id)
+    original_count = len(session["messages"])
+
+    if original_count == 0:
+        return CompactResponse(
+            session_id=request.session_id,
+            original_messages=0,
+            compacted_messages=0,
+        )
+
+    # Ask Claude to summarise the conversation
+    summary_messages = session["messages"] + [
+        {
+            "role": "user",
+            "content": (
+                "Please provide a detailed summary of our entire conversation above. "
+                "Capture all key points, decisions, code discussed, and any important context. "
+                "This summary will replace the conversation history to save space."
+            ),
+        }
+    ]
+
+    try:
+        api_response = client.messages.create(
+            model=DEFAULT_MODEL,
+            max_tokens=4096,
+            messages=summary_messages,
+        )
+    except anthropic.APIError as e:
+        raise HTTPException(status_code=502, detail=f"Claude API error: {e.message}")
+
+    summary_text = api_response.content[0].text
+
+    # Replace history with compact summary
+    session["messages"] = [
+        {
+            "role": "user",
+            "content": "Here is a summary of our previous conversation:\n\n" + summary_text,
+        },
+        {
+            "role": "assistant",
+            "content": (
+                "I have the context from our previous conversation. "
+                "How can I help you next?"
+            ),
+        },
+    ]
+
+    return CompactResponse(
+        session_id=request.session_id,
+        original_messages=original_count,
+        compacted_messages=2,
+    )
+
+
+@router.get("/context-usage/{session_id}", response_model=ContextUsageResponse)
+async def context_usage(session_id: str) -> ContextUsageResponse:
+    """Return approximate token count and context usage for a session."""
+    if session_id not in _sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session = _get_or_create_session(session_id)
+    estimated = _estimate_tokens(session["messages"])
+    usage_pct = round((estimated / MAX_CONTEXT_TOKENS) * 100, 2)
+
+    return ContextUsageResponse(
+        session_id=session_id,
+        estimated_tokens=estimated,
+        max_tokens=MAX_CONTEXT_TOKENS,
+        usage_percent=usage_pct,
+        message_count=len(session["messages"]),
+    )

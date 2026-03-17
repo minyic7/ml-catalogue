@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom"
 
 import { Toolbox } from "./Toolbox"
 import { ChatDialog, type InitialContext } from "./ChatDialog"
+import { ScreenshotCapture } from "./ScreenshotCapture"
 
 /**
  * QAAssistant — parent component that composes Toolbox + ChatDialog
@@ -10,6 +11,7 @@ import { ChatDialog, type InitialContext } from "./ChatDialog"
  */
 export function QAAssistant() {
   const [chatOpen, setChatOpen] = React.useState(false)
+  const [screenshotActive, setScreenshotActive] = React.useState(false)
   const [initialContext, setInitialContext] =
     React.useState<InitialContext | null>(null)
   const [hasSelection, setHasSelection] = React.useState(false)
@@ -64,10 +66,19 @@ export function QAAssistant() {
     setChatOpen(true)
   }, [pageLabel])
 
-  // ------- Screenshot button handler (placeholder) -------
+  // ------- Screenshot button handler -------
   const handleScreenshotClick = React.useCallback(() => {
-    setInitialContext(null)
+    setScreenshotActive(true)
+  }, [])
+
+  const handleScreenshotCapture = React.useCallback((dataUri: string) => {
+    setScreenshotActive(false)
+    setInitialContext({ type: "image", data: dataUri, label: "Screenshot" })
     setChatOpen(true)
+  }, [])
+
+  const handleScreenshotCancel = React.useCallback(() => {
+    setScreenshotActive(false)
   }, [])
 
   // ------- Close handler -------
@@ -77,11 +88,17 @@ export function QAAssistant() {
 
   return (
     <>
-      {!chatOpen && (
+      {!chatOpen && !screenshotActive && (
         <Toolbox
           onScreenshotClick={handleScreenshotClick}
           onHighlightClick={handleHighlightClick}
           hasSelection={hasSelection}
+        />
+      )}
+      {screenshotActive && (
+        <ScreenshotCapture
+          onCapture={handleScreenshotCapture}
+          onCancel={handleScreenshotCancel}
         />
       )}
       <ChatDialog

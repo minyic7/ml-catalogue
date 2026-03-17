@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Outlet, useOutletContext } from 'react-router-dom';
+import { Link, Outlet, useOutletContext } from 'react-router-dom';
 import { MenuIcon, SearchIcon } from 'lucide-react';
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -56,7 +56,9 @@ export default function RootLayout() {
           >
             <MenuIcon className="size-5" />
           </Button>
-          <h1 className="text-xl font-semibold">ML Catalogue</h1>
+          <Link to="/" className="cursor-pointer">
+            <h1 className="text-xl font-semibold">ML Catalogue</h1>
+          </Link>
         </div>
         <div className="flex items-center gap-2">
           <Button

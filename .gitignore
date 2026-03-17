@@ -1,0 +1,6 @@
+# Claude Hub
+.claude-hub.jsonl
+
+# Node
+node_modules/
+dist/

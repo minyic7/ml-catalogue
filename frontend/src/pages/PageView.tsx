@@ -14,40 +14,12 @@ export default function PageView() {
   const [executionTime, setExecutionTime] = useState<number | null>(null);
 
   const level = CONTENT_STRUCTURE.find((l) => l.slug === levelSlug);
-  if (!level) return <Navigate to="/404" replace />;
-
-  // If no chapter specified, redirect to first chapter's first page
-  if (!chapterSlug) {
-    const firstChapter = level.chapters[0];
-    const firstPage = firstChapter.pages[0];
-    return (
-      <Navigate
-        to={`/${level.slug}/${firstChapter.slug}/${firstPage.slug}`}
-        replace
-      />
-    );
-  }
-
-  const chapter = level.chapters.find((c) => c.slug === chapterSlug);
-  if (!chapter) return <Navigate to="/404" replace />;
-
-  // If no page specified, redirect to first page in chapter
-  if (!pageSlug) {
-    const firstPage = chapter.pages[0];
-    return (
-      <Navigate
-        to={`/${level.slug}/${chapter.slug}/${firstPage.slug}`}
-        replace
-      />
-    );
-  }
-
-  const page = chapter.pages.find((p) => p.slug === pageSlug);
-  if (!page) return <Navigate to="/404" replace />;
+  const chapter = level?.chapters.find((c) => c.slug === chapterSlug);
+  const page = chapter?.pages.find((p) => p.slug === pageSlug);
 
   const handleRun = useCallback(
     async (mode: RunMode, device: DeviceType) => {
-      if (!page.codeSnippet) return;
+      if (!page?.codeSnippet) return;
       setIsLoading(true);
       setOutput(null);
       setExecutionTime(null);
@@ -72,8 +44,37 @@ export default function PageView() {
         setIsLoading(false);
       }
     },
-    [page.codeSnippet],
+    [page?.codeSnippet],
   );
+
+  if (!level) return <Navigate to="/404" replace />;
+
+  // If no chapter specified, redirect to first chapter's first page
+  if (!chapterSlug) {
+    const firstChapter = level.chapters[0];
+    const firstPage = firstChapter.pages[0];
+    return (
+      <Navigate
+        to={`/${level.slug}/${firstChapter.slug}/${firstPage.slug}`}
+        replace
+      />
+    );
+  }
+
+  if (!chapter) return <Navigate to="/404" replace />;
+
+  // If no page specified, redirect to first page in chapter
+  if (!pageSlug) {
+    const firstPage = chapter.pages[0];
+    return (
+      <Navigate
+        to={`/${level.slug}/${chapter.slug}/${firstPage.slug}`}
+        replace
+      />
+    );
+  }
+
+  if (!page) return <Navigate to="/404" replace />;
 
   const hasContent = page.markdownContent || page.codeSnippet;
 

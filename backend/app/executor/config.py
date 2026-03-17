@@ -4,10 +4,10 @@ Provides environment variable generation for Quick/Full dataset modes
 and MPS/CPU device selection.
 """
 
-from enum import Enum
+from enum import StrEnum
 
 
-class DatasetMode(str, Enum):
+class DatasetMode(StrEnum):
     quick = "quick"
     full = "full"
 
@@ -35,9 +35,7 @@ class DeviceConfig:
         self.mps_available = _detect_mps()
         if requested == "mps" and not self.mps_available:
             self.device = "cpu"
-            self.warning = (
-                "MPS device requested but not available, falling back to CPU"
-            )
+            self.warning = "MPS device requested but not available, falling back to CPU"
         else:
             self.device = requested
             self.warning = ""

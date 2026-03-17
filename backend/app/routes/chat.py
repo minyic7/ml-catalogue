@@ -21,6 +21,12 @@ _MAX_IMAGE_BYTES = 20 * 1024 * 1024  # 20 MB max base64 image size
 _sessions: OrderedDict[str, dict[str, Any]] = OrderedDict()
 
 DEFAULT_MODEL = "claude-sonnet-4-20250514"
+ALLOWED_MODELS = {
+    DEFAULT_MODEL,
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
+    "claude-haiku-4-5-20251001",
+}
 MAX_CONTEXT_TOKENS = 200_000  # Claude Sonnet context window
 
 # ---------------------------------------------------------------------------
@@ -148,6 +154,11 @@ async def chat(request: ChatRequest) -> ChatResponse:
             )
 
     model = request.model or DEFAULT_MODEL
+    if model not in ALLOWED_MODELS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Model '{model}' is not allowed. Allowed models: {', '.join(sorted(ALLOWED_MODELS))}",
+        )
     session = _get_or_create_session(request.session_id)
 
     # Build user message content

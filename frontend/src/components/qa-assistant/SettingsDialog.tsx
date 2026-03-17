@@ -97,7 +97,7 @@ function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none ring-ring placeholder:text-muted-foreground focus:ring-1"
             />
             <p className="text-xs text-muted-foreground">
-              Stored locally in your browser. Never sent to our server.
+              Stored in your browser. Sent to the server for API calls but never persisted server-side.
             </p>
           </div>
 

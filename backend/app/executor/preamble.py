@@ -14,7 +14,43 @@ import base64
 import builtins
 import json
 import os
+import sys
+import types
 
+# ---------------------------------------------------------------------------
+# ml_catalogue_runtime: convenience helpers snippets can import
+# ---------------------------------------------------------------------------
+_runtime = types.ModuleType("ml_catalogue_runtime")
+_runtime.__doc__ = "Runtime helpers injected by the sandbox preamble."
+_runtime.MODE = os.environ.get("ML_CATALOGUE_MODE", "quick")
+_runtime.SAMPLE_SIZE = int(os.environ.get("ML_CATALOGUE_SAMPLE_SIZE", "100"))
+_runtime.DEVICE = os.environ.get("ML_CATALOGUE_DEVICE", "cpu")
+
+
+def _load_dataset(data, sample_size=None):
+    """Return a (possibly sampled) copy of *data* based on the current mode.
+
+    *data* must support ``len()`` and ``.sample()`` (e.g. a pandas DataFrame)
+    or be a plain list.  When *sample_size* is ``None`` the value is read from
+    the ``ML_CATALOGUE_SAMPLE_SIZE`` environment variable (0 means no limit).
+    """
+    if sample_size is None:
+        sample_size = _runtime.SAMPLE_SIZE
+    if sample_size <= 0 or len(data) <= sample_size:
+        return data
+    # pandas DataFrame / Series
+    if hasattr(data, "sample"):
+        return data.sample(n=sample_size, random_state=42)
+    # plain list
+    return data[:sample_size]
+
+
+_runtime.load_dataset = _load_dataset
+sys.modules["ml_catalogue_runtime"] = _runtime
+
+# ---------------------------------------------------------------------------
+# Chart capture setup
+# ---------------------------------------------------------------------------
 _CHART_DIR = os.environ.get("_SANDBOX_CHART_DIR", "")
 _CHART_MANIFEST = os.environ.get("_SANDBOX_CHART_MANIFEST", "")
 _captured_charts: list[str] = []

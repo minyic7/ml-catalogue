@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SearchIcon, FileTextIcon } from "lucide-react";
 import {
@@ -22,14 +22,18 @@ export default function SearchDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
-  useEffect(() => {
-    if (open) {
-      setQuery("");
-      setResults([]);
-      setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 0);
-    }
-  }, [open]);
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (nextOpen) {
+        setQuery("");
+        setResults([]);
+        setSelectedIndex(0);
+        setTimeout(() => inputRef.current?.focus(), 0);
+      }
+      onOpenChange(nextOpen);
+    },
+    [onOpenChange],
+  );
 
   const handleSearch = useCallback((value: string) => {
     setQuery(value);
@@ -65,7 +69,7 @@ export default function SearchDialog({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         showCloseButton={false}
         className="top-[20%] translate-y-0 sm:max-w-lg p-0 gap-0 overflow-hidden"

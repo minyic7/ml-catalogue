@@ -38,7 +38,7 @@ function stripMarkdown(md: string): string {
     .trim();
 }
 
-let pages: IndexedPage[] = [];
+const pages: IndexedPage[] = [];
 let index: Document<IndexedPage> | null = null;
 
 function getIndex(): Document<IndexedPage> {

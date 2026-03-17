@@ -33,6 +33,7 @@ except ImportError:
         charts: list[str] = field(default_factory=list)
         execution_time_ms: float = 0.0
 
+
 _PREAMBLE_PATH = Path(__file__).with_name("preamble.py")
 
 # Default memory limit: 1 GB (matplotlib + numpy need substantial address space)

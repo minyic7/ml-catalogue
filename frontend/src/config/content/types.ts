@@ -5,6 +5,7 @@ export interface Page {
   markdownContent?: string;
   codeSnippet?: string;
   codeLanguage?: string;
+  isDeepLearning?: boolean;
   metadata?: Record<string, unknown>;
 }
 

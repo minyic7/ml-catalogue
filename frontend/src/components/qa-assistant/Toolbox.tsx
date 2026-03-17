@@ -184,6 +184,9 @@ function Toolbox({ onScreenshotClick, onHighlightClick, onAskClick, hasSelection
         const clamped = clampPosition(newLeft, newTop, w, h)
         setPosition({ x: clamped.left, y: clamped.top })
         savePosition({ x: clamped.left, y: clamped.top })
+      } else {
+        // No drag occurred — treat as a click to toggle
+        setExpanded((prev) => !prev)
       }
     },
     []

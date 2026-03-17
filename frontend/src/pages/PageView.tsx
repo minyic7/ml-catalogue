@@ -1,8 +1,15 @@
+import { useCallback, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { CONTENT_STRUCTURE } from "../config/content";
+import { CodeBlock } from "../components/CodeBlock";
+import { MarkdownRenderer } from "../components/MarkdownRenderer";
+import { OutputArea, type OutputData } from "../components/OutputArea";
+import { RunButton, type RunMode } from "../components/RunButton";
 
 export default function PageView() {
   const { levelSlug, chapterSlug, pageSlug } = useParams();
+  const [isLoading, setIsLoading] = useState(false);
+  const [output, setOutput] = useState<OutputData | null>(null);
 
   const level = CONTENT_STRUCTURE.find((l) => l.slug === levelSlug);
   if (!level) return <Navigate to="/404" replace />;
@@ -36,6 +43,25 @@ export default function PageView() {
   const page = chapter.pages.find((p) => p.slug === pageSlug);
   if (!page) return <Navigate to="/404" replace />;
 
+  const handleRun = useCallback(
+    (mode: RunMode) => {
+      setIsLoading(true);
+      setOutput(null);
+      setTimeout(() => {
+        setOutput({
+          stdout:
+            mode === "quick"
+              ? "a + b = [5 7 9]\na * 3 = [3 6 9]\na · b = 32\n||a|| = 3.7417\nâ = [0.2673 0.5345 0.8018]"
+              : "a + b = [5 7 9]\na * 3 = [3 6 9]\na · b = 32\n||a|| = 3.7417\nâ = [0.2673 0.5345 0.8018]\n\n[Full mode] All assertions passed.",
+        });
+        setIsLoading(false);
+      }, 1000);
+    },
+    [],
+  );
+
+  const hasContent = page.markdownContent || page.codeSnippet;
+
   return (
     <div>
       <nav className="mb-6 text-sm text-muted-foreground">
@@ -53,13 +79,33 @@ export default function PageView() {
         <span className="text-foreground">{page.title}</span>
       </nav>
 
-      <h2 className="text-2xl font-bold">{page.title}</h2>
-      {page.description && (
-        <p className="mt-1 text-muted-foreground">{page.description}</p>
+      {hasContent ? (
+        <div className="space-y-6">
+          {page.markdownContent && (
+            <MarkdownRenderer content={page.markdownContent} />
+          )}
+          {page.codeSnippet && (
+            <>
+              <CodeBlock
+                code={page.codeSnippet}
+                language={page.codeLanguage}
+              />
+              <RunButton onRun={handleRun} isLoading={isLoading} />
+              <OutputArea output={output} />
+            </>
+          )}
+        </div>
+      ) : (
+        <>
+          <h2 className="text-2xl font-bold">{page.title}</h2>
+          {page.description && (
+            <p className="mt-1 text-muted-foreground">{page.description}</p>
+          )}
+          <p className="mt-6 text-muted-foreground italic">
+            Content coming soon.
+          </p>
+        </>
       )}
-      <p className="mt-6 text-muted-foreground italic">
-        Content coming soon.
-      </p>
     </div>
   );
 }

@@ -21,6 +21,33 @@ A documentation-style ML knowledge catalog covering the full spectrum from found
 - Tailscale from GitHub Actions to Mac Mini for SSH deploy
 - Cloudflare Quick Tunnel (cloudflared) for temporary public URL — no domain required
 - FastAPI serves frontend static files (StaticFiles mount) — single container for frontend + backend
+- LLM Q&A assistant — interactive learning aid powered by Anthropic Claude API (with Vision):
+  - Floating draggable toolbox (default bottom-right, collapsible) with Ask, Screenshot, and Highlight tools
+  - Ask mode: open dialog directly to ask a free-form question — no highlight or screenshot required; current page content is sent as context automatically
+  - Highlight mode: select text on any page → click Ask → popover dialog with the selected text as context
+  - Screenshot mode: click capture → drag to select a screen region (html2canvas) → popover dialog with the image as context
+  - Dialog supports multi-turn conversation and paste-image input
+  - Current page content is included as context alongside the user's question
+  - Session identity: frontend generates a UUID stored in localStorage, sent with every API call to isolate conversations per browser
+  - Backend conversation store: in-memory dict keyed by session ID, 7-day TTL with auto-eviction on inactivity
+  - Context management: memory usage indicator showing how much context is consumed, manual Compact button to summarise and compress history, auto-compact when context approaches the limit
+  - Backend: FastAPI proxy endpoint to Anthropic Claude API (text + vision)
+- Extended content chapters:
+  - Gradient Boosting chapter (Core ML level): Gradient Boosting Fundamentals, XGBoost, LightGBM, CatBoost — with fraud/transaction modelling examples
+  - Reinforcement Learning chapter (Advanced level): MDP & Bellman Equations, Q-Learning, Policy Gradient, Deep RL (DQN)
+  - Graph Neural Networks chapter (Advanced level): Graph Basics & Representations, GCN, GraphSAGE, Graph Attention Networks
+  - Generative Models chapter (Advanced level): Variational Autoencoders (VAE), Generative Adversarial Networks (GAN), Diffusion Models
+  - Financial ML chapter (Professional level) — Banking & Financial Institution ML applications:
+    - Credit Risk Modelling: PD/LGD/EAD estimation, credit scorecards (logistic regression + WoE/IV), application vs behavioural scoring
+    - Fraud Detection Pipeline: rule engine → ML hybrid, real-time vs batch scoring, feature engineering for transactions
+    - Anti-Money Laundering (AML): transaction monitoring, suspicious activity detection, network/graph-based AML
+    - Model Risk Management: regulatory context (SR 11-7 / SS1/23), model validation, champion-challenger framework, model documentation
+    - Banking-specific metrics: KS statistic, Gini coefficient, PSI (Population Stability Index), CSI (Characteristic Stability Index)
+  - Model Evaluation additions (Core ML level): PR-AUC (Precision-Recall AUC) for imbalanced datasets, calibration curves, lift/gain charts — especially relevant for credit/fraud use cases
+- Learning progress tracker:
+  - Per-page read status toggle (mark as read / unread), persisted in localStorage
+  - Sidebar progress indicators showing completion per chapter (e.g., "3/5 pages read")
+  - Overall progress bar on the home page showing total completion percentage
 
 ### Out of Scope
 - User accounts or authentication

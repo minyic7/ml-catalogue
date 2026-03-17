@@ -1,47 +1,111 @@
-# Deploy to Mac Mini via SSH on push to main
+# Build Docker image, push to GHCR, and deploy to Mac Mini via Tailscale SSH
 #
 # Required GitHub Secrets:
-#   DEPLOY_HOST — Mac Mini IP address or hostname
-#   DEPLOY_USER — SSH username on the Mac Mini
-#   DEPLOY_KEY  — SSH private key for authentication
-#   DEPLOY_PATH — Absolute path to the project directory on the Mac Mini
-#                  (e.g. /Users/deploy/ml-catalogue)
+#   TS_OAUTH_CLIENT_ID — Tailscale OAuth client ID
+#   TS_OAUTH_SECRET    — Tailscale OAuth secret
+#   DEPLOY_SSH_KEY     — SSH private key for Mac Mini authentication
+#   DEPLOY_USER        — SSH username on the Mac Mini
+#   DEPLOY_HOST        — Tailscale IP of the Mac Mini (100.107.201.81)
 
 name: Deploy
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "*.md"
+      - ".gitignore"
+      - ".claude/**"
 
 concurrency:
   group: deploy-production
   cancel-in-progress: false
 
+env:
+  IMAGE: ghcr.io/minyic7/ml-catalogue
+  DEPLOY_PATH: /Users/minyic/ml-catalogue
+
 jobs:
+  build:
+    name: Build & Push Image
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   deploy:
     name: Deploy to Mac Mini
+    needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Connect Tailscale
+        uses: tailscale/github-action@v4
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_KEY }}
-          script: |
-            cd "${{ secrets.DEPLOY_PATH }}"
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
 
-            # Pull latest code
-            git pull origin main
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
 
-            # Install frontend dependencies and build
-            pnpm install --frozen-lockfile
-            pnpm --filter frontend build
+      - name: Copy compose files
+        run: |
+          scp -o StrictHostKeyChecking=no \
+            docker-compose.yml docker-compose.prod.yml \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ env.DEPLOY_PATH }}/
 
-            # Install backend dependencies
-            cd backend
-            uv sync
-            cd ..
+      - name: Deploy
+        run: |
+          ssh -o StrictHostKeyChecking=no \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+            "cd ${{ env.DEPLOY_PATH }} && \
+             docker compose -f docker-compose.yml -f docker-compose.prod.yml pull && \
+             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans --force-recreate"
 
-            # Restart services
-            sudo systemctl restart ml-catalogue
+      - name: Health check
+        run: |
+          for i in $(seq 1 10); do
+            if ssh -o StrictHostKeyChecking=no \
+              ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+              "curl -sf http://localhost:8000/api/health"; then
+              echo ""
+              echo "Health check passed on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i/10 failed, waiting 5s..."
+            sleep 5
+          done
+          echo "Health check failed after 10 attempts"
+          exit 1

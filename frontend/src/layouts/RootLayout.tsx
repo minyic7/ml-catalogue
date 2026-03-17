@@ -7,7 +7,7 @@ import Sidebar from '@/components/Sidebar';
 import SearchDialog from '@/components/SearchDialog';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import ThemeToggle from '@/components/ThemeToggle';
-import { QAAssistant } from '@/components/qa-assistant/QAAssistant';
+import { QAAssistant } from '@/components/qa-assistant';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,

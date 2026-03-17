@@ -2,7 +2,7 @@ import type { Level } from "../types";
 import { calculusOptimisation } from "./calculus-optimisation";
 import { linearAlgebra } from "./linear-algebra";
 import { probabilityStatistics } from "./probability-statistics";
-import { pythonEssentials } from "./python-essentials";
+import { dataEssentials } from "./data-essentials";
 
 export const foundational: Level = {
   title: "Foundational",
@@ -12,6 +12,6 @@ export const foundational: Level = {
     linearAlgebra,
     calculusOptimisation,
     probabilityStatistics,
-    pythonEssentials,
+    dataEssentials,
   ],
 };

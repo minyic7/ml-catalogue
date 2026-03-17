@@ -1,6 +1,8 @@
 import * as React from "react"
 import { useLocation } from "react-router-dom"
 
+import { MessageCircle } from "lucide-react"
+
 import { Toolbox } from "./Toolbox"
 import { ChatDialog, type InitialContext } from "./ChatDialog"
 import { ScreenshotCapture } from "./ScreenshotCapture"
@@ -20,6 +22,10 @@ export function QAAssistant() {
   const [initialContext, setInitialContext] =
     React.useState<InitialContext | null>(null)
   const [hasSelection, setHasSelection] = React.useState(false)
+  const [selectionPopup, setSelectionPopup] = React.useState<{
+    x: number
+    y: number
+  } | null>(null)
   const location = useLocation()
 
   // ------- Track whether the user currently has text selected -------
@@ -28,6 +34,18 @@ export function QAAssistant() {
       const sel = window.getSelection()
       const text = sel?.toString().trim() ?? ""
       setHasSelection(text.length > 0)
+
+      if (text.length > 0 && sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0)
+        const rect = range.getBoundingClientRect()
+        // Position popup above the selection, centered horizontally
+        setSelectionPopup({
+          x: rect.left + rect.width / 2,
+          y: rect.top,
+        })
+      } else {
+        setSelectionPopup(null)
+      }
     }
 
     document.addEventListener("selectionchange", checkSelection)
@@ -121,6 +139,24 @@ export function QAAssistant() {
     setScreenshotActive(false)
   }, [])
 
+  // ------- Selection popup click handler -------
+  const handleSelectionPopupClick = React.useCallback(() => {
+    const sel = window.getSelection()
+    const selectedText = sel?.toString().trim() ?? ""
+
+    if (selectedText) {
+      setInitialContext({
+        type: "text",
+        data: selectedText,
+        label: pageLabel,
+      })
+      sel?.removeAllRanges()
+    }
+
+    setSelectionPopup(null)
+    setChatOpen(true)
+  }, [pageLabel])
+
   // ------- Close handler -------
   const handleClose = React.useCallback(() => {
     setChatOpen(false)
@@ -128,6 +164,26 @@ export function QAAssistant() {
 
   return (
     <>
+      {/* Selection bubble popup */}
+      {selectionPopup && !chatOpen && (
+        <button
+          type="button"
+          className="fixed z-[60] flex -translate-x-1/2 -translate-y-full items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground shadow-lg transition-colors hover:bg-accent dark:border-input dark:bg-input/30"
+          style={{
+            left: selectionPopup.x,
+            top: selectionPopup.y - 8,
+          }}
+          onMouseDown={(e) => {
+            // Prevent this click from clearing the selection
+            e.preventDefault()
+          }}
+          onClick={handleSelectionPopupClick}
+        >
+          <MessageCircle className="size-3.5" />
+          Ask about this
+        </button>
+      )}
+
       {/* Toolbox is always visible except during screenshot capture */}
       {!screenshotActive && (
         <Toolbox

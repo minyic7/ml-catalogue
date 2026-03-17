@@ -5,10 +5,11 @@ import { computerVision } from "./computer-vision";
 import { timeSeries } from "./time-series";
 import { reinforcementLearning } from "./reinforcement-learning";
 import { graphNeuralNetworks } from "./graph-neural-networks";
+import { generativeModels } from "./generative-models";
 
 export const advanced: Level = {
   title: "Advanced",
   slug: "advanced",
   icon: "brain",
-  chapters: [deepLearning, nlp, computerVision, timeSeries, reinforcementLearning, graphNeuralNetworks],
+  chapters: [deepLearning, nlp, computerVision, timeSeries, reinforcementLearning, graphNeuralNetworks, generativeModels],
 };

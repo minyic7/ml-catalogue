@@ -7,6 +7,8 @@ import Sidebar from '@/components/Sidebar';
 import SearchDialog from '@/components/SearchDialog';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import ThemeToggle from '@/components/ThemeToggle';
+import { Toolbox } from '@/components/qa-assistant/Toolbox';
+import { ChatDialog } from '@/components/qa-assistant/ChatDialog';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -26,6 +28,7 @@ export function useLayoutContext() {
 export default function RootLayout() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -96,6 +99,18 @@ export default function RootLayout() {
       </div>
 
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+
+      {/* QA Assistant */}
+      {!chatOpen && (
+        <Toolbox
+          onScreenshotClick={() => setChatOpen(true)}
+          onHighlightClick={() => setChatOpen(true)}
+        />
+      )}
+      <ChatDialog
+        isOpen={chatOpen}
+        onClose={() => setChatOpen(false)}
+      />
     </div>
     </ThemeProvider>
   );

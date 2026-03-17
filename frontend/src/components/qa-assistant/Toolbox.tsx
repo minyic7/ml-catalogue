@@ -1,10 +1,17 @@
 import * as React from "react"
-import { Camera, MessageCircle, MessageSquare, TextSelect, X } from "lucide-react"
+import { Camera, MessageSquare, TextSelect, X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 const STORAGE_KEY = "qa-toolbox-position"
+const SEEN_KEY = "qa-toolbox-seen"
 const DEFAULT_POSITION = { x: -80, y: -80 } // offset from bottom-right
 
 interface ToolboxProps {
@@ -61,6 +68,7 @@ function Toolbox({ onScreenshotClick, onHighlightClick, onAskClick, hasSelection
   const [expanded, setExpanded] = React.useState(false)
   const [position, setPosition] = React.useState(loadPosition)
   const [isDragging, setIsDragging] = React.useState(false)
+  const [showHint, setShowHint] = React.useState(false)
   const dragRef = React.useRef<{
     startX: number
     startY: number
@@ -69,6 +77,33 @@ function Toolbox({ onScreenshotClick, onHighlightClick, onAskClick, hasSelection
     moved: boolean
   } | null>(null)
   const toolboxRef = React.useRef<HTMLDivElement>(null)
+
+  // On first visit, briefly auto-expand the toolbox so users discover the tools
+  React.useEffect(() => {
+    try {
+      if (localStorage.getItem(SEEN_KEY)) return
+      localStorage.setItem(SEEN_KEY, "1")
+    } catch {
+      return
+    }
+
+    // Brief delay so the page renders first, then auto-expand
+    const showTimer = setTimeout(() => {
+      setExpanded(true)
+      setShowHint(true)
+    }, 800)
+
+    // Auto-collapse after a few seconds
+    const hideTimer = setTimeout(() => {
+      setExpanded(false)
+      setShowHint(false)
+    }, 4800)
+
+    return () => {
+      clearTimeout(showTimer)
+      clearTimeout(hideTimer)
+    }
+  }, [])
 
   // Compute CSS left/top from stored position
   const style = React.useMemo(() => {
@@ -159,108 +194,158 @@ function Toolbox({ onScreenshotClick, onHighlightClick, onAskClick, hasSelection
 
   const handleToggle = React.useCallback(() => {
     if (dragRef.current?.moved) return // don't toggle after drag
+    setShowHint(false)
     setExpanded((prev) => !prev)
   }, [])
 
   return (
-    <div
-      ref={toolboxRef}
-      className={cn(
-        "fixed z-50 select-none",
-        isDragging ? "cursor-grabbing" : "cursor-grab",
-        className
-      )}
-      style={style}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-    >
-      {/* Collapsed state — single circular button */}
+    <TooltipProvider>
       <div
+        ref={toolboxRef}
         className={cn(
-          "transition-all duration-200 ease-in-out",
-          expanded ? "pointer-events-none scale-0 opacity-0" : "scale-100 opacity-100"
+          "fixed z-50 select-none",
+          isDragging ? "cursor-grabbing" : "cursor-grab",
+          className
         )}
+        style={style}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
       >
-        <div className="relative">
-          <Button
-            variant="default"
-            size="icon-lg"
-            className={cn(
-              "size-12 rounded-full shadow-lg",
-              hasSelection && "ring-2 ring-offset-2 ring-primary"
-            )}
-            onClick={handleToggle}
-            aria-label="Open QA assistant toolbox"
-          >
-            <MessageCircle className="size-5" />
-          </Button>
-          {hasSelection && (
-            <span className="absolute -top-0.5 -right-0.5 flex size-3">
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
-              <span className="relative inline-flex size-3 rounded-full bg-primary" />
-            </span>
+        {/* Collapsed state — labeled pill button */}
+        <div
+          className={cn(
+            "transition-all duration-200 ease-in-out",
+            expanded ? "pointer-events-none scale-0 opacity-0" : "scale-100 opacity-100"
           )}
-        </div>
-      </div>
-
-      {/* Expanded state — tool buttons panel */}
-      <div
-        className={cn(
-          "absolute bottom-0 right-0 origin-bottom-right transition-all duration-200 ease-in-out",
-          expanded
-            ? "pointer-events-auto scale-100 opacity-100"
-            : "pointer-events-none scale-75 opacity-0"
-        )}
-      >
-        <div className="flex items-center gap-1.5 rounded-xl border border-border bg-background p-1.5 shadow-lg dark:border-input dark:bg-input/30">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onScreenshotClick}
-            aria-label="Take screenshot"
-          >
-            <Camera className="size-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onHighlightClick}
-            aria-label="Highlight and ask"
-            className={cn(
-              hasSelection &&
-                "ring-2 ring-primary bg-primary/10 text-primary"
-            )}
-          >
-            <TextSelect className="size-4" />
+        >
+          <div className="relative">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="default"
+                  className={cn(
+                    "h-10 gap-1.5 rounded-full px-3 shadow-lg",
+                    hasSelection && "ring-2 ring-offset-2 ring-primary"
+                  )}
+                  onClick={handleToggle}
+                  aria-label="Open QA assistant toolbox"
+                >
+                  <Camera className="size-4" />
+                  <span className="text-xs font-medium">QA Tools</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                Click to open: Screenshot, Highlight, Ask
+              </TooltipContent>
+            </Tooltip>
             {hasSelection && (
-              <span className="absolute -top-1 -right-1 flex size-2.5">
+              <span className="absolute -top-0.5 -right-0.5 flex size-3">
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
-                <span className="relative inline-flex size-2.5 rounded-full bg-primary" />
+                <span className="relative inline-flex size-3 rounded-full bg-primary" />
               </span>
             )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onAskClick}
-            aria-label="Ask a question about this page"
-            title="Ask a question about this page"
-          >
-            <MessageSquare className="size-4" />
-          </Button>
-          <div className="mx-0.5 h-5 w-px bg-border dark:bg-input" />
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={handleToggle}
-            aria-label="Close toolbox"
-          >
-            <X className="size-3.5" />
-          </Button>
+          </div>
+        </div>
+
+        {/* Expanded state — tool buttons panel */}
+        <div
+          className={cn(
+            "absolute bottom-0 right-0 origin-bottom-right transition-all duration-200 ease-in-out",
+            expanded
+              ? "pointer-events-auto scale-100 opacity-100"
+              : "pointer-events-none scale-75 opacity-0"
+          )}
+        >
+          <div className="flex flex-col items-end gap-1.5">
+            {showHint && (
+              <div className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-md animate-in fade-in-0 slide-in-from-bottom-2">
+                Capture screenshots or highlight text to ask about
+              </div>
+            )}
+            <div className="flex items-center gap-1 rounded-xl border border-border bg-background p-1.5 shadow-lg dark:border-input dark:bg-input/30">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 px-2"
+                    onClick={onScreenshotClick}
+                    aria-label="Capture screen region to ask about"
+                  >
+                    <Camera className="size-4" />
+                    <span className="text-xs">Screenshot</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  Capture screen region to ask about
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      "gap-1.5 px-2",
+                      hasSelection &&
+                        "ring-2 ring-primary bg-primary/10 text-primary"
+                    )}
+                    onClick={onHighlightClick}
+                    aria-label="Highlight text and ask about it"
+                  >
+                    <TextSelect className="size-4" />
+                    <span className="text-xs">Highlight</span>
+                    {hasSelection && (
+                      <span className="absolute -top-1 -right-1 flex size-2.5">
+                        <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
+                        <span className="relative inline-flex size-2.5 rounded-full bg-primary" />
+                      </span>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  Highlight text and ask about it
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 px-2"
+                    onClick={onAskClick}
+                    aria-label="Ask a question about this page"
+                  >
+                    <MessageSquare className="size-4" />
+                    <span className="text-xs">Ask</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  Ask a question about this page
+                </TooltipContent>
+              </Tooltip>
+              <div className="mx-0.5 h-5 w-px bg-border dark:bg-input" />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={handleToggle}
+                    aria-label="Close toolbox"
+                  >
+                    <X className="size-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  Close toolbox
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </TooltipProvider>
   )
 }
 

@@ -1,0 +1,69 @@
+# Deploy to Mac Mini via SSH on push to main
+#
+# Required GitHub Secrets:
+#   DEPLOY_HOST — Mac Mini IP address or hostname
+#   DEPLOY_USER — SSH username on the Mac Mini
+#   DEPLOY_KEY  — SSH private key for authentication
+#   DEPLOY_PATH — Absolute path to the project directory on the Mac Mini
+#                  (e.g. /Users/deploy/ml-catalogue)
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        run: pnpm --filter frontend build
+
+  deploy:
+    name: Deploy to Mac Mini
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            # Pull latest code
+            git pull origin main
+
+            # Install frontend dependencies and build
+            pnpm install --frozen-lockfile
+            pnpm --filter frontend build
+
+            # Install backend dependencies
+            cd backend
+            uv sync
+            cd ..
+
+            # Restart services
+            sudo systemctl restart ml-catalogue

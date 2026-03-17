@@ -86,9 +86,9 @@ ALLOWED_MODULES: frozenset[str] = frozenset(
         "secrets",
         "imblearn",
         "imbalanced-learn",
-        # Preamble internals
+        # Preamble internals (builtins intentionally excluded — user code
+        # must not access builtins directly as it enables exec/eval bypass)
         "ml_catalogue_runtime",
-        "builtins",
         "types",
         "atexit",
         "base64",
@@ -121,12 +121,13 @@ def _top_level_module(name: str) -> str:
 
 
 def _is_module_blocked(name: str) -> bool:
-    """Check whether *name* (possibly dotted) resolves to a blocked module."""
+    """Check whether *name* (possibly dotted) resolves to a blocked module.
+
+    Uses a default-deny policy: any module not explicitly in ALLOWED_MODULES
+    is blocked.
+    """
     top = _top_level_module(name)
-    # Explicitly allowed takes precedence
-    if top in ALLOWED_MODULES:
-        return False
-    return top in BLOCKED_MODULES
+    return top not in ALLOWED_MODULES
 
 
 # ---------------------------------------------------------------------------
@@ -161,27 +162,40 @@ class _SecurityVisitor(ast.NodeVisitor):
 
     # -- __import__() calls ---------------------------------------------
 
+    # Names that are always blocked when called (as function or method)
+    _BLOCKED_CALL_NAMES: frozenset[str] = frozenset(
+        {"eval", "exec", "compile", "__import__"}
+    )
+
     def visit_Call(self, node: ast.Call) -> None:  # noqa: N802
-        # __import__("something")
-        if isinstance(node.func, ast.Name) and node.func.id == "__import__":
+        func = node.func
+
+        # Direct calls: eval(), exec(), compile(), __import__()
+        if isinstance(func, ast.Name) and func.id in self._BLOCKED_CALL_NAMES:
             self.violations.append(
-                f"Blocked call: '__import__()' is not allowed in the sandbox "
+                f"Blocked call: '{func.id}()' is not allowed in the sandbox "
                 f"(line {node.lineno})"
             )
 
-        # eval / exec / compile
-        if isinstance(node.func, ast.Name) and node.func.id in {
-            "eval",
-            "exec",
-            "compile",
-        }:
+        # Method-call style: builtins.exec(), foo.eval(), etc.
+        if (
+            isinstance(func, ast.Attribute)
+            and func.attr in self._BLOCKED_CALL_NAMES
+        ):
             self.violations.append(
-                f"Blocked call: '{node.func.id}()' is not allowed in the sandbox "
+                f"Blocked call: '{func.attr}()' via attribute access is not "
+                f"allowed in the sandbox (line {node.lineno})"
+            )
+
+        # getattr() — can be used to dynamically access blocked attributes
+        if isinstance(func, ast.Name) and func.id == "getattr":
+            self.violations.append(
+                f"Blocked call: 'getattr()' is not allowed in the sandbox "
                 f"(line {node.lineno})"
             )
 
         # open() with write mode
-        if isinstance(node.func, ast.Name) and node.func.id == "open":
+        if isinstance(func, ast.Name) and func.id == "open":
             self._check_open_write(node)
 
         self.generic_visit(node)

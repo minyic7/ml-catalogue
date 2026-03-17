@@ -50,6 +50,18 @@ class TestBlockedImports:
         assert len(violations) == 1
         assert "Blocked import" in violations[0]
 
+    def test_default_deny_unknown_module(self):
+        """Modules not in ALLOWED_MODULES are blocked (default-deny)."""
+        violations = check_code_security("import antigravity")
+        assert len(violations) == 1
+        assert "Blocked import" in violations[0]
+
+    def test_builtins_import_blocked(self):
+        """builtins module should not be importable by user code."""
+        violations = check_code_security("import builtins")
+        assert len(violations) == 1
+        assert "Blocked import" in violations[0]
+
 
 # ---------------------------------------------------------------------------
 # AST pre-check: allowed imports
@@ -124,6 +136,23 @@ class TestDangerousCalls:
         """open() with no mode defaults to 'r' which is safe."""
         violations = check_code_security('open("data.csv")')
         assert violations == []
+
+    def test_method_call_exec_blocked(self):
+        """builtins.exec() style calls must be caught."""
+        violations = check_code_security('builtins.exec("print(1)")')
+        assert any("exec()" in v for v in violations)
+
+    def test_method_call_eval_blocked(self):
+        violations = check_code_security('foo.eval("1+1")')
+        assert any("eval()" in v for v in violations)
+
+    def test_method_call_compile_blocked(self):
+        violations = check_code_security('x.compile("pass", "<>", "exec")')
+        assert any("compile()" in v for v in violations)
+
+    def test_getattr_blocked(self):
+        violations = check_code_security('getattr(obj, "__globals__")')
+        assert any("getattr()" in v for v in violations)
 
 
 # ---------------------------------------------------------------------------

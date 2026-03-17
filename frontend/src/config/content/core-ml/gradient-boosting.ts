@@ -436,7 +436,7 @@ start = time.time()
 xgb_model = xgb.XGBClassifier(
     n_estimators=n_rounds, max_depth=5, learning_rate=0.1,
     scale_pos_weight=scale_weight, colsample_bytree=0.8,
-    subsample=0.8, reg_lambda=1.0, use_label_encoder=False,
+    subsample=0.8, reg_lambda=1.0,
     eval_metric="auc", random_state=42, verbosity=0
 )
 xgb_model.fit(X_train, y_train, eval_set=[(X_test, y_test)],

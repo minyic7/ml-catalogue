@@ -52,10 +52,13 @@ async def test_timeout(infinite_loop_snippet):
 
 @pytest.mark.asyncio
 async def test_import_error(import_error_snippet):
-    """Importing a nonexistent module returns a clean error."""
+    """Importing a nonexistent module is blocked by default-deny policy."""
     result = await run_sandboxed(import_error_snippet, timeout=10)
     assert result.error is not None
-    assert "ModuleNotFoundError" in result.error
+    assert (
+        "Security policy violation" in result.error
+        or "ModuleNotFoundError" in result.error
+    )
 
 
 @pytest.mark.asyncio

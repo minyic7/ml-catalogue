@@ -4,6 +4,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import './index.css';
 import RootLayout from './layouts/RootLayout';
 import HomePage from './pages/HomePage';
+import PageView from './pages/PageView';
+import NotFound from './pages/NotFound';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -11,7 +13,11 @@ createRoot(document.getElementById('root')!).render(
       <Routes>
         <Route element={<RootLayout />}>
           <Route index element={<HomePage />} />
-          <Route path="*" element={<HomePage />} />
+          <Route path=":levelSlug" element={<PageView />} />
+          <Route path=":levelSlug/:chapterSlug" element={<PageView />} />
+          <Route path=":levelSlug/:chapterSlug/:pageSlug" element={<PageView />} />
+          <Route path="404" element={<NotFound />} />
+          <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
     </BrowserRouter>

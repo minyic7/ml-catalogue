@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Camera, MessageCircle, TextSelect, X } from "lucide-react"
+import { Camera, MessageCircle, MessageSquare, TextSelect, X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,7 @@ const DEFAULT_POSITION = { x: -80, y: -80 } // offset from bottom-right
 interface ToolboxProps {
   onScreenshotClick?: () => void
   onHighlightClick?: () => void
+  onAskClick?: () => void
   /** When true, the highlight/ask button shows an active visual indicator */
   hasSelection?: boolean
   className?: string
@@ -56,7 +57,7 @@ function clampPosition(
   return { left: clampedLeft, top: clampedTop }
 }
 
-function Toolbox({ onScreenshotClick, onHighlightClick, hasSelection, className }: ToolboxProps) {
+function Toolbox({ onScreenshotClick, onHighlightClick, onAskClick, hasSelection, className }: ToolboxProps) {
   const [expanded, setExpanded] = React.useState(false)
   const [position, setPosition] = React.useState(loadPosition)
   const [isDragging, setIsDragging] = React.useState(false)
@@ -235,6 +236,15 @@ function Toolbox({ onScreenshotClick, onHighlightClick, hasSelection, className 
                 <span className="relative inline-flex size-2.5 rounded-full bg-primary" />
               </span>
             )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onAskClick}
+            aria-label="Ask a question about this page"
+            title="Ask a question about this page"
+          >
+            <MessageSquare className="size-4" />
           </Button>
           <div className="mx-0.5 h-5 w-px bg-border dark:bg-input" />
           <Button

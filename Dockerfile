@@ -11,14 +11,15 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY frontend/package.json frontend/
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # Copy frontend source and build
 COPY frontend/ frontend/
 RUN pnpm --filter frontend build
 
 # Stage 2: Production backend
-FROM python:3.12-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 
@@ -31,7 +32,8 @@ RUN groupadd --gid 1000 appuser && \
 
 # Copy backend dependency files and install
 COPY backend/pyproject.toml backend/uv.lock ./
-RUN uv sync --frozen --no-dev
+RUN --mount=type=cache,id=uv,target=/root/.cache/uv \
+    uv sync --frozen --no-dev
 
 # Copy backend source
 COPY backend/ .

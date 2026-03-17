@@ -98,7 +98,12 @@ jobs:
             "export PATH=/usr/local/bin:\$PATH && \
              cd ${{ secrets.DEPLOY_PATH }} && \
              docker compose -f docker-compose.yml -f docker-compose.prod.yml pull && \
-             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans --force-recreate"
+             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans"
+
+      - name: Prune old images
+        run: |
+          ssh deploy-target \
+            "docker image prune -f"
 
       - name: Health check
         run: |
@@ -109,8 +114,13 @@ jobs:
               echo "Health check passed on attempt $i"
               exit 0
             fi
-            echo "Attempt $i/10 failed, waiting 5s..."
-            sleep 5
+            if [ "$i" -le 5 ]; then
+              echo "Attempt $i/10 failed, waiting 2s..."
+              sleep 2
+            else
+              echo "Attempt $i/10 failed, waiting 5s..."
+              sleep 5
+            fi
           done
           echo "Health check failed after 10 attempts"
           exit 1

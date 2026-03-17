@@ -18,6 +18,13 @@ dependencies = [
     "anthropic>=0.42.0",
 ]
 
+[project.optional-dependencies]
+boosting = [
+    "xgboost>=2.0.0",
+    "lightgbm>=4.0.0",
+    "catboost>=1.2.0",
+]
+
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",

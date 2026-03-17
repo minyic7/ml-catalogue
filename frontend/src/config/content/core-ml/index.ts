@@ -4,10 +4,11 @@ import { supervisedLearning } from "./supervised-learning";
 import { unsupervisedLearning } from "./unsupervised-learning";
 import { modelEvaluation } from "./model-evaluation";
 import { featureEngineering } from "./feature-engineering";
+import { gradientBoosting } from "./gradient-boosting";
 
 export const coreMl: Level = {
   title: "Core ML",
   slug: "core-ml",
   icon: "cpu",
-  chapters: [eda, supervisedLearning, unsupervisedLearning, modelEvaluation, featureEngineering],
+  chapters: [eda, supervisedLearning, unsupervisedLearning, modelEvaluation, featureEngineering, gradientBoosting],
 };

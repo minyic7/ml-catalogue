@@ -4,11 +4,13 @@ A machine learning model catalogue application.
 
 ## Live Demo
 
-The app is deployed on a Mac Mini and exposed via a Cloudflare Quick Tunnel. The public URL is ephemeral and changes on each deploy/restart. To find the current URL, run on the Mac Mini:
-
-```bash
-docker compose logs cloudflared
-```
+> **https://loads-optimum-crest-addressing.trycloudflare.com**
+>
+> This is a temporary Cloudflare Quick Tunnel URL for testing purposes. It may become unavailable at any time (e.g., on redeploy or restart). To find the current URL, run on the Mac Mini:
+>
+> ```bash
+> docker compose logs cloudflared
+> ```
 
 ## Tech Stack
 

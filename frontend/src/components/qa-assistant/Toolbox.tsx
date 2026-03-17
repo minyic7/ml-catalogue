@@ -172,7 +172,7 @@ function Toolbox({ onScreenshotClick, onHighlightClick, onAskClick, hasSelection
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
     >
-      {/* Collapsed state — single circular button */}
+      {/* Collapsed state — labeled pill button */}
       <div
         className={cn(
           "transition-all duration-200 ease-in-out",
@@ -182,15 +182,16 @@ function Toolbox({ onScreenshotClick, onHighlightClick, onAskClick, hasSelection
         <div className="relative">
           <Button
             variant="default"
-            size="icon-lg"
             className={cn(
-              "size-12 rounded-full shadow-lg",
+              "h-10 gap-1.5 rounded-full px-3 shadow-lg",
               hasSelection && "ring-2 ring-offset-2 ring-primary"
             )}
             onClick={handleToggle}
+            title="QA Tools — Screenshot, Highlight, Ask"
             aria-label="Open QA assistant toolbox"
           >
-            <MessageCircle className="size-5" />
+            <Camera className="size-4" />
+            <span className="text-xs font-medium">QA Tools</span>
           </Button>
           {hasSelection && (
             <span className="absolute -top-0.5 -right-0.5 flex size-3">
@@ -210,26 +211,32 @@ function Toolbox({ onScreenshotClick, onHighlightClick, onAskClick, hasSelection
             : "pointer-events-none scale-75 opacity-0"
         )}
       >
-        <div className="flex items-center gap-1.5 rounded-xl border border-border bg-background p-1.5 shadow-lg dark:border-input dark:bg-input/30">
+        <div className="flex items-center gap-1 rounded-xl border border-border bg-background p-1.5 shadow-lg dark:border-input dark:bg-input/30">
           <Button
             variant="ghost"
-            size="icon"
+            size="sm"
+            className="gap-1.5 px-2"
             onClick={onScreenshotClick}
-            aria-label="Take screenshot"
+            title="Capture screen region to ask about"
+            aria-label="Capture screen region to ask about"
           >
             <Camera className="size-4" />
+            <span className="text-xs">Screenshot</span>
           </Button>
           <Button
             variant="ghost"
-            size="icon"
-            onClick={onHighlightClick}
-            aria-label="Highlight and ask"
+            size="sm"
             className={cn(
+              "gap-1.5 px-2",
               hasSelection &&
                 "ring-2 ring-primary bg-primary/10 text-primary"
             )}
+            onClick={onHighlightClick}
+            title="Highlight text and ask about it"
+            aria-label="Highlight text and ask about it"
           >
             <TextSelect className="size-4" />
+            <span className="text-xs">Highlight</span>
             {hasSelection && (
               <span className="absolute -top-1 -right-1 flex size-2.5">
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
@@ -239,18 +246,21 @@ function Toolbox({ onScreenshotClick, onHighlightClick, onAskClick, hasSelection
           </Button>
           <Button
             variant="ghost"
-            size="icon"
+            size="sm"
+            className="gap-1.5 px-2"
             onClick={onAskClick}
-            aria-label="Ask a question about this page"
             title="Ask a question about this page"
+            aria-label="Ask a question about this page"
           >
             <MessageSquare className="size-4" />
+            <span className="text-xs">Ask</span>
           </Button>
           <div className="mx-0.5 h-5 w-px bg-border dark:bg-input" />
           <Button
             variant="ghost"
             size="icon-sm"
             onClick={handleToggle}
+            title="Close toolbox"
             aria-label="Close toolbox"
           >
             <X className="size-3.5" />

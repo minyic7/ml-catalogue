@@ -12,7 +12,7 @@ export async function executeCode(params: {
   signal?: AbortSignal
 }): Promise<ExecutionResult> {
   const { signal, ...body } = params
-  const response = await fetch("/api/execute", {
+  const response = await fetch(`${import.meta.env.BASE_URL}api/execute`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

@@ -1,5 +1,6 @@
 import os
 import time
+from collections import OrderedDict
 from typing import Any
 
 import anthropic
@@ -9,22 +10,34 @@ from pydantic import BaseModel, Field
 router = APIRouter(prefix="/api/chat")
 
 # ---------------------------------------------------------------------------
-# In-memory conversation store with 7-day TTL
+# In-memory conversation store with 7-day TTL and LRU eviction
 # ---------------------------------------------------------------------------
 _SESSION_TTL = 7 * 24 * 3600  # 7 days in seconds
+_MAX_SESSIONS = 10_000  # LRU eviction limit to prevent memory exhaustion
+_MAX_IMAGE_BYTES = 20 * 1024 * 1024  # 20 MB max base64 image size
 
+# OrderedDict for LRU eviction — most recently used sessions move to the end
 # Each entry: {"messages": list[dict], "last_active": float}
-_sessions: dict[str, dict[str, Any]] = {}
+_sessions: OrderedDict[str, dict[str, Any]] = OrderedDict()
 
 DEFAULT_MODEL = "claude-sonnet-4-20250514"
 MAX_CONTEXT_TOKENS = 200_000  # Claude Sonnet context window
 
+# ---------------------------------------------------------------------------
+# Cached Anthropic client (created once, reused across requests)
+# ---------------------------------------------------------------------------
+_client: anthropic.Anthropic | None = None
+
 
 def _get_client() -> anthropic.Anthropic:
+    global _client
+    if _client is not None:
+        return _client
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured")
-    return anthropic.Anthropic(api_key=api_key)
+    _client = anthropic.Anthropic(api_key=api_key)
+    return _client
 
 
 def _evict_expired() -> None:
@@ -40,7 +53,13 @@ def _evict_expired() -> None:
 
 def _get_or_create_session(session_id: str) -> dict[str, Any]:
     _evict_expired()
-    if session_id not in _sessions:
+    if session_id in _sessions:
+        # Move to end (most recently used)
+        _sessions.move_to_end(session_id)
+    else:
+        # Evict oldest sessions if at capacity
+        while len(_sessions) >= _MAX_SESSIONS:
+            _sessions.popitem(last=False)
         _sessions[session_id] = {"messages": [], "last_active": time.time()}
     session = _sessions[session_id]
     session["last_active"] = time.time()
@@ -117,6 +136,11 @@ async def chat(request: ChatRequest) -> ChatResponse:
     content: list[dict[str, Any]] = []
 
     if request.image:
+        if len(request.image) > _MAX_IMAGE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Image exceeds maximum size of {_MAX_IMAGE_BYTES // (1024 * 1024)} MB",
+            )
         # Detect media type from base64 header or default to png
         media_type = "image/png"
         image_data = request.image

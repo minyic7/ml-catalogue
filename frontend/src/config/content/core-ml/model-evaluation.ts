@@ -544,5 +544,245 @@ plt.tight_layout()
 plt.show()`,
       codeLanguage: "python",
     },
+    {
+      title: "PR-AUC, Calibration & Lift Charts",
+      slug: "pr-auc-calibration-lift",
+      description:
+        "Precision-recall AUC, calibration curves, and lift/gain charts for imbalanced datasets",
+      markdownContent: `# PR-AUC, Calibration & Lift Charts
+
+Standard ROC-AUC can paint an overly optimistic picture when classes are highly imbalanced. This page covers three complementary evaluation tools that are essential for credit scoring, fraud detection, and similar domains where the positive class is rare.
+
+---
+
+## 1. Precision-Recall AUC (PR-AUC)
+
+### Why ROC-AUC Can Be Misleading
+
+ROC-AUC measures the tradeoff between the **true positive rate** and the **false positive rate**. When negatives vastly outnumber positives (e.g., 95% vs 5%), a model can achieve a low FPR simply because the denominator ($FP + TN$) is enormous. A large number of false positives can still look like a tiny FPR, inflating the ROC-AUC.
+
+**Precision-recall curves** focus exclusively on the positive class, making them far more informative for imbalanced problems.
+
+### The PR Curve
+
+At each classification threshold $t$, we compute:
+
+$$
+\\text{Precision}(t) = \\frac{TP(t)}{TP(t) + FP(t)}, \\qquad \\text{Recall}(t) = \\frac{TP(t)}{TP(t) + FN(t)}
+$$
+
+Plotting precision (y-axis) against recall (x-axis) traces the **PR curve**. A perfect classifier hugs the top-right corner (precision = recall = 1). A no-skill classifier sits at $\\text{Precision} = \\pi$, where $\\pi$ is the prevalence of the positive class.
+
+### Average Precision (AP)
+
+The area under the PR curve is summarised by **Average Precision**:
+
+$$
+\\text{AP} = \\sum_{k} (R_k - R_{k-1}) \\cdot P_k
+$$
+
+This is equivalent to the weighted mean of precisions at each threshold, weighted by the increase in recall. Unlike ROC-AUC, AP is sensitive to improvements in the rare positive class.
+
+---
+
+## 2. Calibration Curves
+
+### What Is Calibration?
+
+A model is **well-calibrated** if its predicted probabilities match observed frequencies. When the model says "30% chance of fraud", roughly 30% of those cases should actually be fraud.
+
+### Reliability Diagrams
+
+A **reliability diagram** (calibration curve) bins predictions by predicted probability, then plots the **mean predicted probability** (x-axis) against the **observed fraction of positives** (y-axis) in each bin. A perfectly calibrated model follows the diagonal $y = x$.
+
+### Why Calibration Matters
+
+In risk scoring (credit default, fraud, insurance), decisions are based on **predicted probabilities**, not just rankings. An uncalibrated model that outputs 0.8 when the true risk is 0.3 leads to overly aggressive risk controls.
+
+### Post-hoc Calibration Methods
+
+- **Platt Scaling**: fits a logistic regression on the model's raw scores — learns a sigmoid mapping $P(y=1 \\mid s) = \\frac{1}{1 + e^{-(as + b)}}$
+- **Isotonic Regression**: fits a non-parametric, monotonically increasing function — more flexible but needs more data
+
+### Brier Score
+
+The **Brier score** measures calibration and refinement together:
+
+$$
+\\text{BS} = \\frac{1}{n} \\sum_{i=1}^{n} (\\hat{p}_i - y_i)^2
+$$
+
+Lower is better. A perfectly calibrated model that also separates classes well achieves the minimum Brier score.
+
+---
+
+## 3. Lift and Gain Charts
+
+### Cumulative Gains Curve
+
+Sort all observations by predicted probability (descending). The **cumulative gains curve** plots the percentage of the population examined (x-axis) against the percentage of all positives captured (y-axis).
+
+A useful model rises steeply above the diagonal baseline. For example, "examining the top 20% of scored customers captures 60% of all fraudsters."
+
+### Lift Curve
+
+**Lift** at a given percentile is the ratio of the model's gain to the baseline (random) gain:
+
+$$
+\\text{Lift}(p) = \\frac{\\text{\\% positives captured at } p}{p}
+$$
+
+A lift of 3.0 at the 10th percentile means the model is three times better than random selection at that cutoff. Lift always starts high (if the model is useful) and converges to 1.0 as the entire population is included.
+
+### Decile Analysis
+
+In banking and marketing, analysts often group customers into **deciles** by predicted score and report the concentration of positives in each decile. This provides an actionable summary: "Decile 1 contains 45% of all defaults."
+
+---
+
+Run the code below to train two models on a synthetic imbalanced dataset, then compare their PR curves, calibration plots, and lift/gain charts side by side.`,
+      codeSnippet: `import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_classification
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.calibration import calibration_curve
+from sklearn.metrics import (precision_recall_curve, average_precision_score,
+                             brier_score_loss, roc_auc_score)
+import os, base64, io
+
+mode = os.environ.get("ML_CATALOGUE_MODE", "quick")
+n_samples = 2000 if mode == "quick" else 10000
+
+# --- Synthetic imbalanced dataset (95% negative, 5% positive) ---
+X, y = make_classification(n_samples=n_samples, n_features=15,
+                           n_informative=8, n_redundant=2,
+                           weights=[0.95, 0.05], flip_y=0.01,
+                           random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.3, stratify=y, random_state=42)
+
+# Model A: Logistic Regression (well-calibrated)
+model_a = LogisticRegression(max_iter=300, random_state=42)
+model_a.fit(X_train, y_train)
+prob_a = model_a.predict_proba(X_test)[:, 1]
+
+# Model B: Decision Tree (poorly calibrated)
+model_b = DecisionTreeClassifier(max_depth=5, random_state=42)
+model_b.fit(X_train, y_train)
+prob_b = model_b.predict_proba(X_test)[:, 1]
+
+# --- Helper: cumulative gains and lift ---
+def cumulative_gains_lift(y_true, y_prob):
+    order = np.argsort(-y_prob)
+    y_sorted = np.array(y_true)[order]
+    n = len(y_sorted)
+    total_pos = y_sorted.sum()
+    cum_pos = np.cumsum(y_sorted)
+    pct_population = np.arange(1, n + 1) / n
+    pct_captured = cum_pos / total_pos
+    lift = pct_captured / pct_population
+    return pct_population, pct_captured, lift
+
+# --- Compute metrics ---
+prec_a, rec_a, _ = precision_recall_curve(y_test, prob_a)
+prec_b, rec_b, _ = precision_recall_curve(y_test, prob_b)
+ap_a = average_precision_score(y_test, prob_a)
+ap_b = average_precision_score(y_test, prob_b)
+
+frac_pos_a, mean_pred_a = calibration_curve(y_test, prob_a, n_bins=10,
+                                             strategy="uniform")
+frac_pos_b, mean_pred_b = calibration_curve(y_test, prob_b, n_bins=10,
+                                             strategy="uniform")
+brier_a = brier_score_loss(y_test, prob_a)
+brier_b = brier_score_loss(y_test, prob_b)
+
+pop_a, gain_a, lift_a = cumulative_gains_lift(y_test, prob_a)
+pop_b, gain_b, lift_b = cumulative_gains_lift(y_test, prob_b)
+
+roc_a = roc_auc_score(y_test, prob_a)
+roc_b = roc_auc_score(y_test, prob_b)
+
+# --- Print summary ---
+print("Model Comparison on Imbalanced Data (95/5 split)")
+print("=" * 52)
+print(f"{'Metric':<22} {'Logistic Reg':>14} {'Decision Tree':>14}")
+print("-" * 52)
+print(f"{'ROC-AUC':<22} {roc_a:>14.4f} {roc_b:>14.4f}")
+print(f"{'PR-AUC (Avg Prec)':<22} {ap_a:>14.4f} {ap_b:>14.4f}")
+print(f"{'Brier Score':<22} {brier_a:>14.4f} {brier_b:>14.4f}")
+prevalence = y_test.mean()
+print(f"\\nPositive prevalence: {prevalence:.2%}")
+
+# Lift at top 10% and 20%
+n_test = len(y_test)
+for pct in [0.10, 0.20]:
+    idx = int(pct * n_test)
+    print(f"\\nTop {pct:.0%} of population:")
+    print(f"  Logistic Reg captures {gain_a[idx]:.1%} of positives "
+          f"(lift = {lift_a[idx]:.1f}x)")
+    print(f"  Decision Tree captures {gain_b[idx]:.1%} of positives "
+          f"(lift = {lift_b[idx]:.1f}x)")
+
+# --- Plot 2x2 chart grid ---
+fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+
+# 1. PR Curve
+ax = axes[0, 0]
+ax.plot(rec_a, prec_a, color="steelblue", lw=2,
+        label=f"Logistic Reg (AP={ap_a:.3f})")
+ax.plot(rec_b, prec_b, color="#e74c3c", lw=2,
+        label=f"Decision Tree (AP={ap_b:.3f})")
+ax.axhline(prevalence, color="gray", ls="--", lw=1, label=f"No skill ({prevalence:.3f})")
+ax.set(xlabel="Recall", ylabel="Precision",
+       title="Precision-Recall Curve")
+ax.legend(loc="upper right", fontsize=8)
+ax.grid(True, alpha=0.3)
+
+# 2. Calibration Curve
+ax = axes[0, 1]
+ax.plot([0, 1], [0, 1], "k--", lw=1, label="Perfect calibration")
+ax.plot(mean_pred_a, frac_pos_a, "o-", color="steelblue", lw=2,
+        label=f"Logistic Reg (Brier={brier_a:.4f})")
+ax.plot(mean_pred_b, frac_pos_b, "s-", color="#e74c3c", lw=2,
+        label=f"Decision Tree (Brier={brier_b:.4f})")
+ax.set(xlabel="Mean Predicted Probability", ylabel="Observed Fraction of Positives",
+       title="Calibration Curve (Reliability Diagram)")
+ax.legend(loc="upper left", fontsize=8)
+ax.grid(True, alpha=0.3)
+
+# 3. Cumulative Gains Chart
+ax = axes[1, 0]
+ax.plot(pop_a, gain_a, color="steelblue", lw=2, label="Logistic Reg")
+ax.plot(pop_b, gain_b, color="#e74c3c", lw=2, label="Decision Tree")
+ax.plot([0, 1], [0, 1], "k--", lw=1, label="Random baseline")
+ax.set(xlabel="Fraction of Population (sorted by score)",
+       ylabel="Fraction of Positives Captured",
+       title="Cumulative Gains Chart")
+ax.legend(loc="lower right", fontsize=8)
+ax.grid(True, alpha=0.3)
+
+# 4. Lift Chart
+ax = axes[1, 1]
+step = max(1, n_test // 200)
+ax.plot(pop_a[::step], lift_a[::step], color="steelblue", lw=2,
+        label="Logistic Reg")
+ax.plot(pop_b[::step], lift_b[::step], color="#e74c3c", lw=2,
+        label="Decision Tree")
+ax.axhline(1.0, color="gray", ls="--", lw=1, label="No lift (random)")
+ax.set(xlabel="Fraction of Population (sorted by score)",
+       ylabel="Lift", title="Lift Chart")
+ax.legend(loc="upper right", fontsize=8)
+ax.grid(True, alpha=0.3)
+
+plt.suptitle("Imbalanced Classification Evaluation (95/5 class split)",
+             fontsize=13, y=1.01)
+plt.tight_layout()
+plt.show()`,
+      codeLanguage: "python",
+    },
   ],
 };

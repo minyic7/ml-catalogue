@@ -211,6 +211,216 @@ for metric, val in results.items():
 print(f"  tested: {len(test_suite)} cases")`,
       codeLanguage: "python",
     },
+    {
+      title: "RAG (Retrieval-Augmented Generation)",
+      slug: "rag",
+      description:
+        "Retrieval-augmented generation: architecture, chunking, embeddings, vector search, and evaluation",
+      markdownContent: `# RAG (Retrieval-Augmented Generation)
+
+## What is RAG?
+
+**Retrieval-Augmented Generation (RAG)** combines a **retrieval system** with a **generative model** to ground responses in external knowledge. Instead of relying solely on what a language model memorized during training, RAG fetches relevant documents at inference time and injects them into the prompt as context.
+
+## Why RAG?
+
+Large language models have fundamental limitations that RAG addresses:
+
+- **Hallucination** — LLMs can generate plausible-sounding but factually incorrect answers
+- **Knowledge cutoff** — pre-trained models cannot access information created after their training data was collected
+- **No access to private data** — enterprise documents, internal wikis, and proprietary databases are invisible to public models
+
+RAG mitigates all three by grounding generation in retrieved, up-to-date, authoritative documents.
+
+## Architecture
+
+The RAG pipeline follows a straightforward flow:
+
+$$
+\\text{Query} \\xrightarrow{\\text{encode}} \\text{Retriever} \\xrightarrow{\\text{top-}k \\text{ docs}} \\text{Augmented Prompt} \\xrightarrow{} \\text{Generator (LLM)} \\xrightarrow{} \\text{Response}
+$$
+
+1. **Query** — the user's question or input
+2. **Retriever** — searches a knowledge base for the $k$ most relevant documents
+3. **Augmented Prompt** — combines the original query with retrieved context
+4. **Generator** — an LLM produces an answer conditioned on both query and context
+
+## The Retriever: Embeddings and Vector Search
+
+The retriever converts both documents and queries into dense vector representations (embeddings) and finds the closest matches.
+
+**Cosine similarity** is the standard metric for comparing embedding vectors:
+
+$$
+\\text{sim}(\\mathbf{q}, \\mathbf{d}) = \\frac{\\mathbf{q} \\cdot \\mathbf{d}}{\\|\\mathbf{q}\\| \\, \\|\\mathbf{d}\\|}
+$$
+
+where $\\mathbf{q}$ is the query embedding and $\\mathbf{d}$ is a document embedding.
+
+For large-scale retrieval, approximate nearest neighbor (ANN) libraries like **FAISS** enable sub-linear search over millions of vectors.
+
+## Chunking Strategies
+
+Before embedding, documents must be split into chunks. The choice of strategy affects retrieval quality:
+
+| Strategy | Description | Tradeoff |
+|---|---|---|
+| **Fixed-size** | Split every $n$ tokens/characters | Simple but may cut mid-sentence |
+| **Sentence-based** | Split on sentence boundaries | Preserves meaning, variable sizes |
+| **Semantic** | Group sentences by topic similarity | Best quality, most compute |
+
+Chunk size is a critical hyperparameter: too small loses context, too large dilutes relevance.
+
+## Embedding Models
+
+Common choices for generating text embeddings:
+
+- **Sentence Transformers** — open-source models (e.g., all-MiniLM-L6-v2) producing 384-dimensional embeddings
+- **OpenAI Embeddings** — API-based models (e.g., text-embedding-3-small) with 1536 dimensions
+- **TF-IDF** — a classical sparse embedding based on term frequency and inverse document frequency, useful as a baseline
+
+TF-IDF computes the weight of term $t$ in document $d$ from corpus $D$ as:
+
+$$
+\\text{tfidf}(t, d, D) = \\text{tf}(t, d) \\times \\log\\frac{|D|}{\\text{df}(t, D)}
+$$
+
+## Vector Databases
+
+Vector databases are purpose-built for storing and querying embeddings at scale:
+
+- **Pinecone** — fully managed, serverless vector search
+- **Weaviate** — open-source with hybrid (vector + keyword) search
+- **Chroma** — lightweight, developer-friendly, embeddable
+- **pgvector** — PostgreSQL extension for vector similarity search
+
+All support CRUD operations on vectors plus filtered nearest-neighbor queries.
+
+## Evaluation
+
+RAG systems are evaluated across three dimensions:
+
+| Metric | What it measures |
+|---|---|
+| **Context relevance** | Are the retrieved documents actually relevant to the query? |
+| **Faithfulness** | Does the generated answer stay faithful to the retrieved context? |
+| **Answer correctness** | Is the final answer factually correct? |
+
+A system can retrieve the right documents but still hallucinate, or generate a faithful answer from irrelevant context — all three metrics matter.
+
+## RAG vs Fine-Tuning
+
+| Dimension | RAG | Fine-Tuning |
+|---|---|---|
+| Knowledge source | External, dynamic | Baked into weights |
+| Update frequency | Real-time (swap docs) | Requires retraining |
+| Cost | Retrieval infra + LLM calls | GPU compute for training |
+| Best for | Factual Q&A, search, support | Style, format, domain adaptation |
+| Hallucination control | Grounds in evidence | Learns patterns, can still hallucinate |
+
+In practice, RAG and fine-tuning are complementary — fine-tune for style and format, use RAG for factual grounding.
+
+## Challenges
+
+- **Chunk size tradeoffs** — small chunks improve precision but lose context; large chunks retain context but reduce retrieval specificity
+- **Retrieval quality** — if the retriever returns irrelevant documents, the generator inherits that noise ("garbage in, garbage out")
+- **Latency** — the retrieval step adds latency on top of LLM inference; vector search must be fast enough for interactive use
+
+Run the code below to build a minimal RAG pipeline from scratch using TF-IDF embeddings and cosine similarity — no external vector DB or LLM needed.`,
+      codeSnippet: `import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+# --- 1. Knowledge base: small set of text paragraphs ---
+knowledge_base = [
+    "The mitochondria are the powerhouses of the cell. They generate "
+    "most of the cell's supply of adenosine triphosphate (ATP), used as "
+    "a source of chemical energy.",
+
+    "Photosynthesis is the process by which green plants convert sunlight "
+    "into chemical energy. It takes place primarily in the chloroplasts "
+    "using chlorophyll pigments.",
+
+    "DNA replication is the biological process of producing two identical "
+    "copies of DNA from one original DNA molecule. It occurs during the "
+    "S phase of the cell cycle.",
+
+    "The Theory of General Relativity, published by Einstein in 1915, "
+    "describes gravity as the curvature of spacetime caused by mass and "
+    "energy.",
+
+    "Neural networks are computing systems inspired by biological neural "
+    "networks. They consist of layers of interconnected nodes that learn "
+    "patterns from data through backpropagation.",
+
+    "The water cycle describes the continuous movement of water within "
+    "the Earth and atmosphere through evaporation, condensation, and "
+    "precipitation.",
+]
+
+print(f"Knowledge base: {len(knowledge_base)} documents")
+print()
+
+# --- 2. Generate TF-IDF embeddings for each chunk ---
+vectorizer = TfidfVectorizer(stop_words="english")
+doc_embeddings = vectorizer.fit_transform(knowledge_base)
+
+print(f"Vocabulary size: {len(vectorizer.vocabulary_)}")
+print(f"Embedding shape: {doc_embeddings.shape}")
+print()
+
+# --- 3. Retrieval: find most similar chunks for a query ---
+def retrieve(query, top_k=2):
+    """Retrieve top-k most relevant documents for a query."""
+    query_vec = vectorizer.transform([query])
+    similarities = cosine_similarity(query_vec, doc_embeddings).flatten()
+    ranked_indices = np.argsort(similarities)[::-1][:top_k]
+    return [(i, similarities[i], knowledge_base[i]) for i in ranked_indices]
+
+query = "How do cells produce energy?"
+print(f"Query: {query!r}")
+print()
+
+results = retrieve(query, top_k=3)
+print("=== Retrieved Documents (ranked by similarity) ===")
+for rank, (idx, score, text) in enumerate(results, 1):
+    print(f"  [{rank}] (score={score:.3f}) Doc {idx}: {text[:80]}...")
+print()
+
+# --- 4. Augment the prompt with retrieved context ---
+def build_augmented_prompt(query, retrieved_docs):
+    """Combine retrieved context with the query into an augmented prompt."""
+    context_block = "\\n\\n".join(
+        f"[Document {i+1}]: {doc}" for i, (_, _, doc) in enumerate(retrieved_docs)
+    )
+    return (
+        f"Use the following context to answer the question.\\n\\n"
+        f"Context:\\n{context_block}\\n\\n"
+        f"Question: {query}\\n"
+        f"Answer:"
+    )
+
+augmented_prompt = build_augmented_prompt(query, results)
+print("=== Augmented Prompt (sent to LLM) ===")
+print(augmented_prompt)
+print()
+
+# --- 5. Compare retrieval for different queries ---
+queries = [
+    "What is photosynthesis?",
+    "Explain how neural networks learn",
+    "Tell me about Einstein's theory",
+    "How does rain form?",
+]
+
+print("=== Multi-Query Retrieval ===")
+for q in queries:
+    top = retrieve(q, top_k=1)[0]
+    print(f"  Q: {q}")
+    print(f"     -> Doc {top[0]} (score={top[1]:.3f}): {top[2][:60]}...")
+    print()`,
+      codeLanguage: "python",
+    },
   ],
 };
 

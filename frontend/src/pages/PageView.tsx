@@ -4,12 +4,14 @@ import { CONTENT_STRUCTURE } from "../config/content";
 import { CodeBlock } from "../components/CodeBlock";
 import { MarkdownRenderer } from "../components/MarkdownRenderer";
 import { OutputArea, type OutputData } from "../components/OutputArea";
-import { RunButton, type RunMode } from "../components/RunButton";
+import { RunButton, type RunMode, type DeviceType } from "../components/RunButton";
+import { executeCode } from "../api/execute";
 
 export default function PageView() {
   const { levelSlug, chapterSlug, pageSlug } = useParams();
   const [isLoading, setIsLoading] = useState(false);
   const [output, setOutput] = useState<OutputData | null>(null);
+  const [executionTime, setExecutionTime] = useState<number | null>(null);
 
   const level = CONTENT_STRUCTURE.find((l) => l.slug === levelSlug);
   if (!level) return <Navigate to="/404" replace />;
@@ -44,20 +46,33 @@ export default function PageView() {
   if (!page) return <Navigate to="/404" replace />;
 
   const handleRun = useCallback(
-    (mode: RunMode) => {
+    async (mode: RunMode, device: DeviceType) => {
+      if (!page.codeSnippet) return;
       setIsLoading(true);
       setOutput(null);
-      setTimeout(() => {
-        setOutput({
-          stdout:
-            mode === "quick"
-              ? "a + b = [5 7 9]\na * 3 = [3 6 9]\na · b = 32\n||a|| = 3.7417\nâ = [0.2673 0.5345 0.8018]"
-              : "a + b = [5 7 9]\na * 3 = [3 6 9]\na · b = 32\n||a|| = 3.7417\nâ = [0.2673 0.5345 0.8018]\n\n[Full mode] All assertions passed.",
+      setExecutionTime(null);
+
+      try {
+        const result = await executeCode({
+          code: page.codeSnippet,
+          mode,
+          device,
         });
+        setOutput({
+          stdout: result.stdout || undefined,
+          charts: result.charts.length > 0 ? result.charts : undefined,
+          error: result.error || undefined,
+        });
+        setExecutionTime(result.execution_time_ms);
+      } catch (err) {
+        setOutput({
+          error: err instanceof Error ? err.message : "An unexpected error occurred",
+        });
+      } finally {
         setIsLoading(false);
-      }, 1000);
+      }
     },
-    [],
+    [page.codeSnippet],
   );
 
   const hasContent = page.markdownContent || page.codeSnippet;
@@ -90,8 +105,17 @@ export default function PageView() {
                 code={page.codeSnippet}
                 language={page.codeLanguage}
               />
-              <RunButton onRun={handleRun} isLoading={isLoading} />
+              <RunButton
+                onRun={handleRun}
+                isLoading={isLoading}
+                showDeviceToggle={page.isDeepLearning}
+              />
               <OutputArea output={output} />
+              {executionTime !== null && (
+                <p className="text-xs text-muted-foreground">
+                  Completed in {(executionTime / 1000).toFixed(1)}s
+                </p>
+              )}
             </>
           )}
         </div>

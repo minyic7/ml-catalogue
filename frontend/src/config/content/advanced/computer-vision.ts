@@ -5,15 +5,17 @@ export const computerVision: Chapter = {
   slug: "computer-vision",
   pages: [
     {
-      title: "Image Representation & Convolutions",
-      slug: "image-representation-convolutions",
+      title: "Convolutions & Pooling",
+      slug: "convolutions-pooling",
       description:
-        "Images as tensors, convolution operations, and common kernels for edge detection and blurring",
-      markdownContent: `# Image Representation & Convolutions
+        "Image representation, convolution kernels, feature maps, max/average pooling, stride and padding",
+      markdownContent: `# Convolutions & Pooling
+
+## Images as Pixel Matrices
 
 Digital images are stored as multi-dimensional arrays — or **tensors**. A grayscale image is a 2D matrix of shape $H \\times W$, where each element is a pixel intensity (typically 0–255). A colour image adds a channel dimension, giving shape $H \\times W \\times C$ where $C = 3$ for RGB.
 
-## The Convolution Operation
+## What Is Convolution?
 
 A **convolution** slides a small matrix called a **kernel** (or filter) across the image, computing a weighted sum at every position. For a 2D input image $I$ and kernel $F$ of size $m \\times n$, the output (feature map) $G$ is:
 
@@ -23,7 +25,7 @@ $$
 
 The kernel acts as a local pattern detector. Different kernels extract different features from the image.
 
-## Common Kernels
+## Edge Detection, Blur & Sharpen Filters
 
 **Edge detection** kernels (like the Sobel filter) highlight regions where pixel intensity changes rapidly — these correspond to edges in the image. A horizontal Sobel kernel is:
 
@@ -33,12 +35,45 @@ $$
 
 **Blurring** kernels (like a box filter) average nearby pixels, smoothing out noise. **Sharpening** kernels enhance edges by subtracting a blurred version from the original, amplifying high-frequency detail.
 
-The output dimensions depend on the kernel size, stride, and padding — concepts we explore on the next page.
+## Feature Maps
 
-Run the code below to apply convolution kernels to a synthetic image and see how each kernel transforms the input.`,
+The output of applying a convolution kernel to an image is called a **feature map**. Each kernel detects a specific pattern — edges, textures, or gradients — and the resulting feature map highlights where that pattern appears in the input. In a CNN, multiple kernels are applied in parallel, producing a stack of feature maps that together capture a rich description of the image.
+
+## Pooling: Max Pooling & Average Pooling
+
+After convolution produces a feature map, **pooling** reduces its spatial dimensions while retaining the most important information. This makes the representation more compact and invariant to small translations.
+
+**Max pooling** slides a window across the feature map and keeps only the maximum value in each region. It preserves the strongest activations — if an edge was detected anywhere inside the window, the output retains that signal.
+
+**Average pooling** takes the mean of all values in each window. It produces a smoother, more blended summary of the region. Max pooling is more common in modern architectures because it better preserves sharp features.
+
+Both operations use a window of size $K \\times K$ and move it with stride $S$.
+
+## Stride and Padding
+
+**Stride** controls how many pixels the kernel moves at each step. A stride of 1 moves the kernel one pixel at a time; a stride of 2 skips every other position, halving the output size.
+
+**Padding** adds extra pixels (usually zeros) around the border of the input. "Same" padding preserves the spatial dimensions; "valid" (no padding) shrinks the output.
+
+The spatial size of the output after convolution or pooling depends on the input width $W$, kernel size $K$, padding $P$, and stride $S$:
+
+$$
+O = \\left\\lfloor \\frac{W - K + 2P}{S} \\right\\rfloor + 1
+$$
+
+For example, a $32 \\times 32$ feature map with a $2 \\times 2$ pooling window and stride 2 (no padding) gives $O = \\lfloor \\frac{32 - 2}{2} \\rfloor + 1 = 16$. Each pooling layer halves the spatial resolution.
+
+## Why These Operations Matter for CNNs
+
+In a CNN, stacking convolution + pooling layers builds a **feature hierarchy**. Early layers detect simple patterns like edges and corners with small receptive fields. Deeper layers combine these into complex features — textures, parts, and eventually whole objects. Each neuron in a deeper layer "sees" a larger region of the original image (its **receptive field** grows), enabling it to recognize increasingly abstract patterns.
+
+Convolutions provide **parameter sharing** (the same kernel is applied everywhere) and **local connectivity** (each output depends on a small region), making CNNs far more efficient than fully connected networks for image data.
+
+Run the code below to apply convolution filters to a synthetic image, then demonstrate max and average pooling with before/after visualisations.`,
       codeSnippet: `import numpy as np
 import matplotlib.pyplot as plt
 
+# --- Part 1: Convolution ---
 # Create a synthetic 64x64 grayscale image with edges and gradients
 image = np.zeros((64, 64), dtype=np.float64)
 image[16:48, 16:48] = 1.0         # bright square
@@ -73,54 +108,17 @@ for idx, (name, kernel) in enumerate(kernels.items()):
     axes[idx+1].imshow(result, cmap="gray"); axes[idx+1].set_title(name)
 for ax in axes: ax.axis("off")
 plt.tight_layout()
-plt.show()`,
-      codeLanguage: "python",
-    },
-    {
-      title: "Feature Detection & Pooling",
-      slug: "feature-detection-pooling",
-      description:
-        "Max pooling, average pooling, stride and padding effects, and hierarchical feature maps",
-      markdownContent: `# Feature Detection & Pooling
+plt.show()
 
-After convolution produces a feature map, **pooling** reduces its spatial dimensions while retaining the most important information. This makes the representation more compact and invariant to small translations.
-
-## Max Pooling & Average Pooling
-
-**Max pooling** slides a window across the feature map and keeps only the maximum value in each region. It preserves the strongest activations — if an edge was detected anywhere inside the window, the output retains that signal.
-
-**Average pooling** takes the mean of all values in each window. It produces a smoother, more blended summary of the region. Max pooling is more common in modern architectures because it better preserves sharp features.
-
-Both operations use a window of size $K \\times K$ and move it with stride $S$.
-
-## Output Dimensions
-
-The spatial size of the output after convolution or pooling depends on the input width $W$, kernel size $K$, padding $P$, and stride $S$:
-
-$$
-O = \\left\\lfloor \\frac{W - K + 2P}{S} \\right\\rfloor + 1
-$$
-
-For example, a $32 \\times 32$ feature map with a $2 \\times 2$ pooling window and stride 2 (no padding) gives $O = \\lfloor \\frac{32 - 2}{2} \\rfloor + 1 = 16$. Each pooling layer halves the spatial resolution.
-
-## Hierarchical Feature Learning
-
-In a CNN, stacking convolution + pooling layers builds a **feature hierarchy**. Early layers detect simple patterns like edges and corners with small receptive fields. Deeper layers combine these into complex features — textures, parts, and eventually whole objects.
-
-Each neuron in a deeper layer "sees" a larger region of the original image (its **receptive field** grows), enabling it to recognize increasingly abstract patterns.
-
-Run the code below to see how max and average pooling transform a feature map and how different stride/padding settings change the output dimensions.`,
-      codeSnippet: `import numpy as np
-import matplotlib.pyplot as plt
-
-# Create a sample 8x8 feature map with interesting patterns
+# --- Part 2: Pooling ---
+# Create an 8x8 feature map (simulating convolution output)
 np.random.seed(42)
 feature_map = np.zeros((8, 8))
 feature_map[1:3, 1:3] = 0.9   # top-left patch
 feature_map[5:7, 5:7] = 0.7   # bottom-right patch
 feature_map[3:5, :] = 0.4     # horizontal band
 feature_map += np.random.rand(8, 8) * 0.15
-print(f"Input feature map shape: {feature_map.shape}")
+print(f"\\nFeature map shape: {feature_map.shape}")
 
 def pool2d(x, size=2, stride=2, mode="max"):
     h, w = x.shape
@@ -138,15 +136,16 @@ avg_pooled = pool2d(feature_map, size=2, stride=2, mode="avg")
 print(f"After 2x2 max pool (stride 2): {max_pooled.shape}")
 print(f"After 2x2 avg pool (stride 2): {avg_pooled.shape}")
 
-# Show dimension formula for different configs
+# Show output dimension formula for different configurations
+print("\\nOutput dimension examples (W, K, P, S -> O):")
 for W, K, P, S in [(32, 3, 1, 1), (32, 3, 0, 2), (28, 5, 2, 1), (16, 2, 0, 2)]:
     O = (W - K + 2*P) // S + 1
-    print(f"W={W}, K={K}, P={P}, S={S}  =>  Output: {O}")
+    print(f"  W={W}, K={K}, P={P}, S={S}  =>  Output: {O}")
 
 fig, axes = plt.subplots(1, 3, figsize=(10, 3.5))
 for ax, data, title in zip(axes,
     [feature_map, max_pooled, avg_pooled],
-    ["Original (8x8)", "Max Pool (4x4)", "Avg Pool (4x4)"]):
+    ["Feature Map (8x8)", "Max Pool (4x4)", "Avg Pool (4x4)"]):
     ax.imshow(data, cmap="viridis", vmin=0, vmax=1)
     ax.set_title(title); ax.axis("off")
     for i in range(data.shape[0]):

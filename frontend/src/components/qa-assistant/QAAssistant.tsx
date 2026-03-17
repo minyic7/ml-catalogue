@@ -100,6 +100,12 @@ export function QAAssistant() {
     setChatOpen(true)
   }, [pageLabel])
 
+  // ------- Ask button handler (no highlight/screenshot, just page context) -------
+  const handleAskClick = React.useCallback(() => {
+    setInitialContext(null)
+    setChatOpen(true)
+  }, [])
+
   // ------- Screenshot button handler -------
   const handleScreenshotClick = React.useCallback(() => {
     setScreenshotActive(true)
@@ -127,6 +133,7 @@ export function QAAssistant() {
         <Toolbox
           onScreenshotClick={handleScreenshotClick}
           onHighlightClick={handleHighlightClick}
+          onAskClick={handleAskClick}
           hasSelection={hasSelection}
         />
       )}

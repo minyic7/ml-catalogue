@@ -33,6 +33,7 @@ except ImportError:
         charts: list[str] = field(default_factory=list)
         execution_time_ms: float = 0.0
 
+
 from app.executor.security import check_code_security
 
 _PREAMBLE_PATH = Path(__file__).with_name("preamble.py")
@@ -42,6 +43,7 @@ _DEFAULT_MEMORY_LIMIT = 512 * 1024 * 1024
 
 # Hard kill grace period beyond the normal timeout (seconds)
 _HARD_KILL_GRACE = 5
+
 
 def _build_preexec(memory_limit: int):
     """Return a preexec_fn that sets resource limits (Linux only)."""

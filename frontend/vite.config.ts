@@ -11,6 +11,20 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes('react-markdown') || id.includes('remark-') || id.includes('rehype-')) {
+            return 'markdown';
+          }
+          if (id.includes('node_modules/katex')) {
+            return 'katex';
+          }
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       '/api': {

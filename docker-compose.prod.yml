@@ -1,0 +1,15 @@
+services:
+  ml-catalogue:
+    image: ghcr.io/minyic7/ml-catalogue:latest
+    platform: linux/arm64
+    ports:
+      - "8000:8000"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://ml-catalogue:8000
+    depends_on:
+      ml-catalogue:
+        condition: service_healthy

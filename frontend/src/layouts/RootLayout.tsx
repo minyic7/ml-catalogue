@@ -44,7 +44,7 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-    <div className="flex h-screen flex-col">
+    <div className="flex h-full min-h-dvh flex-col">
       <header className="flex items-center justify-between border-b px-4 py-3 lg:px-6">
         <div className="flex items-center gap-2">
           <Button

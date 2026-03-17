@@ -12,7 +12,7 @@ import {
 
 const STORAGE_KEY = "qa-toolbox-position"
 const SEEN_KEY = "qa-toolbox-seen"
-const DEFAULT_POSITION = { x: -80, y: -80 } // offset from bottom-right
+const DEFAULT_POSITION = { x: -140, y: -80 } // offset from bottom-right
 
 interface ToolboxProps {
   onScreenshotClick?: () => void

@@ -95,7 +95,8 @@ jobs:
       - name: Deploy
         run: |
           ssh deploy-target \
-            "cd ${{ secrets.DEPLOY_PATH }} && \
+            "export PATH=/usr/local/bin:\$PATH && \
+             cd ${{ secrets.DEPLOY_PATH }} && \
              docker compose -f docker-compose.yml -f docker-compose.prod.yml pull && \
              docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans --force-recreate"
 

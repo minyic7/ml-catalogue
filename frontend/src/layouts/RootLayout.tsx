@@ -17,6 +17,7 @@ export interface LayoutContext {
   openSearch: () => void;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useLayoutContext() {
   return useOutletContext<LayoutContext>();
 }

@@ -244,8 +244,8 @@ print("\\n-- Expected Loss Example --")
 ead = 25000
 lgd = 0.45
 el = prob * lgd * ead
-print(f"  PD = {prob:.4f}, LGD = {lgd}, EAD = ${ead:,.0f}")
-print(f"  Expected Loss = PD x LGD x EAD = ${el:,.2f}")
+print(f"  PD = {prob:.4f}, LGD = {lgd}, EAD = \${ead:,.0f}")
+print(f"  Expected Loss = PD x LGD x EAD = \${el:,.2f}")
 `;
 
 const fraudDetectionMarkdown = `

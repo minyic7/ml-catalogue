@@ -152,5 +152,397 @@ plt.tight_layout()
 plt.show()`,
       codeLanguage: "python",
     },
+    {
+      title: "Bias-Variance Tradeoff",
+      slug: "bias-variance-tradeoff",
+      description:
+        "Understanding underfitting, overfitting, and the tradeoff between model bias and variance",
+      markdownContent: `# Bias-Variance Tradeoff
+
+Every predictive model's total error can be decomposed into three components: **bias**, **variance**, and **irreducible noise**. Understanding this decomposition is essential for diagnosing model performance and choosing the right level of complexity.
+
+## What Is Bias?
+
+**Bias** is the error introduced by approximating a complex real-world problem with a simplified model. A model with high bias makes strong assumptions about the data — for example, fitting a straight line to a curved relationship.
+
+High bias leads to **underfitting**: the model is too simple to capture the underlying pattern, so it performs poorly on both training and test data.
+
+## What Is Variance?
+
+**Variance** is the error introduced by the model's sensitivity to fluctuations in the training data. A model with high variance fits the training data very closely — including its noise — so small changes in the training set produce very different models.
+
+High variance leads to **overfitting**: the model captures noise as if it were signal, performing well on training data but poorly on unseen data.
+
+## The Tradeoff
+
+The expected prediction error at a point $x$ decomposes as:
+
+$$
+\\text{Error}(x) = \\text{Bias}^2(x) + \\text{Variance}(x) + \\sigma^2_{\\text{noise}}
+$$
+
+where $\\sigma^2_{\\text{noise}}$ is the **irreducible error** — the inherent noise in the data that no model can eliminate.
+
+As model complexity increases:
+- **Bias decreases** — the model can represent more complex relationships
+- **Variance increases** — the model becomes more sensitive to the particular training data
+
+This creates a characteristic **U-shaped curve** of test error vs model complexity. The optimal model sits at the bottom of this curve, balancing bias and variance.
+
+## Diagnosing with Learning Curves
+
+**Learning curves** plot training error and validation error as a function of training set size:
+- **High bias**: both training and validation errors are high and converge — more data won't help, you need a more complex model
+- **High variance**: training error is low but validation error is high with a gap — more data or regularisation can help
+
+## Practical Implications
+
+| Scenario | Bias | Variance | Fix |
+|----------|------|----------|-----|
+| Linear model on non-linear data | High | Low | Use a more flexible model |
+| Deep neural network on small data | Low | High | Regularise, get more data, or simplify |
+| Well-tuned ensemble | Moderate | Moderate | The sweet spot |
+
+Run the code below to see underfitting, good fit, and overfitting in action with polynomial regression of different degrees.`,
+      codeSnippet: `import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.model_selection import learning_curve
+
+# Generate noisy data from a known curve
+np.random.seed(42)
+n = 60
+X = np.sort(np.random.uniform(0, 1, n))
+y = np.sin(2 * np.pi * X) + np.random.normal(0, 0.3, n)
+X = X.reshape(-1, 1)
+
+# Three polynomial degrees: underfitting, good fit, overfitting
+degrees = [1, 4, 15]
+labels = ["Degree 1 (Underfit)", "Degree 4 (Good Fit)", "Degree 15 (Overfit)"]
+colors = ["#e74c3c", "#27ae60", "#8e44ad"]
+
+fig, axes = plt.subplots(2, 3, figsize=(14, 8))
+
+X_plot = np.linspace(0, 1, 200).reshape(-1, 1)
+
+for i, (deg, label, color) in enumerate(zip(degrees, labels, colors)):
+    model = make_pipeline(PolynomialFeatures(deg), LinearRegression())
+    model.fit(X, y)
+    y_plot = model.predict(X_plot)
+
+    # Top row: fitted curves
+    ax = axes[0, i]
+    ax.scatter(X, y, s=15, alpha=0.6, color="gray", label="Data")
+    ax.plot(X_plot, y_plot, color=color, lw=2, label=label)
+    ax.plot(X_plot, np.sin(2 * np.pi * X_plot), "k--", lw=1, alpha=0.4,
+            label="True function")
+    ax.set(title=label, xlabel="x", ylabel="y", ylim=(-2, 2))
+    ax.legend(fontsize=7)
+
+    # Bottom row: learning curves
+    ax2 = axes[1, i]
+    train_sizes, train_scores, val_scores = learning_curve(
+        model, X, y, cv=5, scoring="neg_mean_squared_error",
+        train_sizes=np.linspace(0.2, 1.0, 8), random_state=42
+    )
+    train_mse = -train_scores.mean(axis=1)
+    val_mse = -val_scores.mean(axis=1)
+    ax2.plot(train_sizes, train_mse, "o-", color=color, label="Training error")
+    ax2.plot(train_sizes, val_mse, "s--", color=color, alpha=0.7,
+             label="Validation error")
+    ax2.set(title=f"Learning Curve ({label.split(' ')[0]} {label.split(' ')[1]})",
+            xlabel="Training set size", ylabel="MSE")
+    ax2.legend(fontsize=7)
+    ax2.grid(True, alpha=0.3)
+
+plt.suptitle("Bias-Variance Tradeoff: Polynomial Regression", fontsize=13, y=1.01)
+plt.tight_layout()
+plt.show()`,
+      codeLanguage: "python",
+    },
+    {
+      title: "Regularisation (L1/L2)",
+      slug: "regularisation",
+      description:
+        "Ridge, Lasso, and Elastic Net regularisation to prevent overfitting",
+      markdownContent: `# Regularisation (L1/L2)
+
+When a model has many features or high polynomial degree, it can fit training data perfectly by assigning large coefficients — but this leads to overfitting. **Regularisation** prevents this by adding a penalty term to the loss function that discourages large weights.
+
+## Why Regularise?
+
+Without regularisation, the model minimises only the training loss:
+
+$$
+\\hat{w} = \\arg\\min_w \\sum_{i=1}^{n} \\mathcal{L}(y_i, f(x_i; w))
+$$
+
+With regularisation, we add a penalty $\\Omega(w)$ controlled by a hyperparameter $\\lambda$:
+
+$$
+\\hat{w} = \\arg\\min_w \\sum_{i=1}^{n} \\mathcal{L}(y_i, f(x_i; w)) + \\lambda \\, \\Omega(w)
+$$
+
+Larger $\\lambda$ means stronger regularisation (simpler model, higher bias, lower variance).
+
+## L2 Regularisation (Ridge)
+
+**Ridge regression** uses the squared L2 norm as the penalty:
+
+$$
+\\Omega_{L2}(w) = \\sum_{j=1}^{p} w_j^2
+$$
+
+Ridge shrinks all coefficients **toward zero** but never exactly to zero. It's effective when many features each contribute a small amount to the prediction.
+
+## L1 Regularisation (Lasso)
+
+**Lasso regression** uses the L1 norm:
+
+$$
+\\Omega_{L1}(w) = \\sum_{j=1}^{p} |w_j|
+$$
+
+The key property of L1 is **sparsity**: it drives some coefficients to **exactly zero**, performing automatic feature selection. This is valuable when you suspect only a few features are truly relevant.
+
+## Elastic Net
+
+**Elastic Net** combines both penalties:
+
+$$
+\\Omega_{EN}(w) = \\alpha \\sum |w_j| + (1 - \\alpha) \\sum w_j^2
+$$
+
+where $\\alpha \\in [0, 1]$ controls the mix. Elastic Net inherits L1's sparsity while gaining L2's stability when features are correlated.
+
+## Geometric Interpretation
+
+The penalties define constraint regions in weight space:
+- **L2 (Ridge)**: a circular (spherical) constraint — the optimum touches the circle smoothly, shrinking all weights
+- **L1 (Lasso)**: a diamond-shaped constraint — the corners lie on the axes, so the optimum is more likely to land at a corner where some weights are exactly zero
+
+## Choosing $\\lambda$
+
+The regularisation strength $\\lambda$ is a hyperparameter chosen by **cross-validation**. A **regularisation path** plots coefficients as $\\lambda$ varies, revealing which features are most important (they persist at higher $\\lambda$ values).
+
+Run the code below to compare Ridge, Lasso, and Elastic Net, and see how coefficients change as regularisation increases.`,
+      codeSnippet: `import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_regression
+from sklearn.linear_model import Ridge, Lasso, ElasticNet
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import cross_val_score
+
+# Create dataset with many features, only a few informative
+X, y, true_coefs = make_regression(n_samples=200, n_features=20,
+                                    n_informative=5, noise=10,
+                                    coef=True, random_state=42)
+scaler = StandardScaler()
+X = scaler.fit_transform(X)
+
+# Range of regularisation strengths
+alphas = np.logspace(-2, 3, 50)
+
+fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
+models = [
+    ("Ridge (L2)", Ridge, "#2980b9"),
+    ("Lasso (L1)", Lasso, "#e74c3c"),
+    ("Elastic Net", ElasticNet, "#27ae60"),
+]
+
+for ax, (name, Model, color) in zip(axes, models):
+    coef_paths = []
+    for a in alphas:
+        kwargs = {"alpha": a, "max_iter": 10000}
+        if Model == ElasticNet:
+            kwargs["l1_ratio"] = 0.5
+        m = Model(**kwargs)
+        m.fit(X, y)
+        coef_paths.append(m.coef_)
+    coef_paths = np.array(coef_paths)
+
+    for j in range(coef_paths.shape[1]):
+        ax.plot(alphas, coef_paths[:, j], lw=1, alpha=0.7)
+    ax.set(xscale="log", xlabel=r"$\\lambda$ (alpha)", ylabel="Coefficient value",
+           title=f"{name} — Coefficient Paths")
+    ax.axhline(0, color="k", lw=0.5, ls="--")
+    ax.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Compare models at a single alpha with cross-validation
+print("\\n5-Fold CV (R² score) at alpha=1.0:")
+for name, Model, _ in models:
+    kwargs = {"alpha": 1.0, "max_iter": 10000}
+    if Model == ElasticNet:
+        kwargs["l1_ratio"] = 0.5
+    m = Model(**kwargs)
+    scores = cross_val_score(m, X, y, cv=5, scoring="r2")
+    print(f"  {name:20s}: R² = {scores.mean():.4f} ± {scores.std():.4f}")
+
+# Show which features Lasso zeros out
+lasso = Lasso(alpha=1.0, max_iter=10000)
+lasso.fit(X, y)
+n_zero = np.sum(lasso.coef_ == 0)
+print(f"\\nLasso (alpha=1.0) zeroed out {n_zero} of {len(lasso.coef_)} features")
+print(f"Non-zero features: {np.where(lasso.coef_ != 0)[0].tolist()}")`,
+      codeLanguage: "python",
+    },
+    {
+      title: "Hyperparameter Tuning",
+      slug: "hyperparameter-tuning",
+      description:
+        "Grid search, random search, and Bayesian optimisation for finding optimal hyperparameters",
+      markdownContent: `# Hyperparameter Tuning
+
+**Hyperparameters** are settings chosen *before* training begins — they control the learning process itself rather than being learned from data.
+
+| | Parameters | Hyperparameters |
+|---|---|---|
+| **Set by** | Learning algorithm | Practitioner |
+| **Examples** | Weights, biases, split points | Learning rate, tree depth, $\\lambda$ |
+| **Optimised via** | Gradient descent, etc. | Search + cross-validation |
+
+Choosing good hyperparameters can make the difference between a mediocre and a state-of-the-art model.
+
+## Grid Search
+
+**Grid search** evaluates every combination in a predefined parameter grid. For example, with 5 values of \`max_depth\` and 4 values of \`n_estimators\`, grid search trains $5 \\times 4 = 20$ models.
+
+**Pros**: exhaustive — guaranteed to find the best combination in the grid.
+**Cons**: scales exponentially with the number of hyperparameters. With $d$ hyperparameters each taking $k$ values, the cost is $O(k^d)$.
+
+## Random Search
+
+**Random search** samples hyperparameter combinations randomly from specified distributions. Bergstra & Bengio (2012) showed that random search is often more efficient than grid search because:
+
+1. Not all hyperparameters are equally important
+2. Grid search wastes evaluations by exhaustively varying unimportant parameters
+3. Random search explores more distinct values of each important parameter for the same budget
+
+## Bayesian Optimisation
+
+**Bayesian optimisation** treats hyperparameter tuning as a black-box optimisation problem:
+
+1. Build a **surrogate model** (e.g., Gaussian Process) of the objective function from evaluated points
+2. Use an **acquisition function** (e.g., Expected Improvement) to decide which point to evaluate next — balancing exploration vs exploitation
+3. Evaluate the objective, update the surrogate, and repeat
+
+This is the most **sample-efficient** method — it typically finds good hyperparameters with far fewer evaluations than grid or random search.
+
+## Nested Cross-Validation
+
+When tuning hyperparameters, there's a risk of **overfitting the validation set** — the chosen hyperparameters might be tuned to the specific validation fold rather than generalising well.
+
+**Nested CV** addresses this with two loops:
+- **Outer loop**: $K_1$ folds for estimating generalisation performance
+- **Inner loop**: $K_2$ folds within each outer training set for hyperparameter selection
+
+This gives an unbiased estimate of how well the *entire tuning procedure* generalises.
+
+## Practical Tips
+
+1. **Start broad**: use random search with wide ranges to identify promising regions
+2. **Then refine**: zoom into the best region with a finer grid or Bayesian optimisation
+3. **Use log scales** for parameters that span orders of magnitude (learning rate, regularisation strength)
+4. **Set a budget**: decide how many evaluations you can afford before starting
+
+Run the code below to compare Grid Search and Random Search on a Random Forest, and visualise the search results.`,
+      codeSnippet: `import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_classification
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import (GridSearchCV, RandomizedSearchCV,
+                                      StratifiedKFold)
+from scipy.stats import randint
+
+# Synthetic classification dataset
+X, y = make_classification(n_samples=500, n_features=15, n_informative=8,
+                           n_redundant=2, random_state=42)
+
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+base_model = RandomForestClassifier(random_state=42)
+
+# --- Grid Search ---
+param_grid = {
+    "n_estimators": [50, 100, 150, 200],
+    "max_depth": [3, 5, 10, 15, None],
+    "min_samples_split": [2, 5, 10],
+}
+
+grid_search = GridSearchCV(base_model, param_grid, cv=cv, scoring="f1",
+                           n_jobs=-1, return_train_score=True)
+grid_search.fit(X, y)
+n_grid = len(grid_search.cv_results_["mean_test_score"])
+
+# --- Random Search (same budget as grid) ---
+param_dist = {
+    "n_estimators": randint(50, 250),
+    "max_depth": [3, 5, 10, 15, None],
+    "min_samples_split": randint(2, 20),
+}
+
+random_search = RandomizedSearchCV(base_model, param_dist, n_iter=n_grid, cv=cv,
+                                    scoring="f1", n_jobs=-1, random_state=42,
+                                    return_train_score=True)
+random_search.fit(X, y)
+
+print(f"Grid Search:   best F1 = {grid_search.best_score_:.4f}  "
+      f"({n_grid} evaluations)")
+print(f"  Best params: {grid_search.best_params_}")
+print(f"\\nRandom Search: best F1 = {random_search.best_score_:.4f}  "
+      f"({n_grid} evaluations)")
+print(f"  Best params: {random_search.best_params_}")
+
+# --- Heatmap: Grid Search scores for max_depth vs n_estimators ---
+results = grid_search.cv_results_
+depths = sorted([d for d in param_grid["max_depth"] if d is not None])
+n_ests = param_grid["n_estimators"]
+
+# Average over min_samples_split for the heatmap
+heatmap = np.zeros((len(depths), len(n_ests)))
+for idx in range(len(results["mean_test_score"])):
+    d = results["params"][idx]["max_depth"]
+    n = results["params"][idx]["n_estimators"]
+    if d is not None:
+        i = depths.index(d)
+        j = n_ests.index(n)
+        heatmap[i, j] += results["mean_test_score"][idx]
+
+# Average over min_samples_split values
+heatmap /= len(param_grid["min_samples_split"])
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 4.5))
+
+im = ax1.imshow(heatmap, cmap="YlOrRd", aspect="auto")
+ax1.set(xticks=range(len(n_ests)), xticklabels=n_ests,
+        yticks=range(len(depths)), yticklabels=depths,
+        xlabel="n_estimators", ylabel="max_depth",
+        title="Grid Search: Mean F1 Score")
+for i in range(len(depths)):
+    for j in range(len(n_ests)):
+        ax1.text(j, i, f"{heatmap[i, j]:.3f}", ha="center", va="center",
+                 fontsize=8, color="black")
+plt.colorbar(im, ax=ax1, label="F1 Score")
+
+# Comparison bar chart
+grid_scores = grid_search.cv_results_["mean_test_score"]
+rand_scores = random_search.cv_results_["mean_test_score"]
+ax2.hist(grid_scores, bins=15, alpha=0.6, color="#2980b9", label="Grid Search")
+ax2.hist(rand_scores, bins=15, alpha=0.6, color="#e74c3c", label="Random Search")
+ax2.axvline(grid_search.best_score_, color="#2980b9", ls="--", lw=2)
+ax2.axvline(random_search.best_score_, color="#e74c3c", ls="--", lw=2)
+ax2.set(xlabel="F1 Score", ylabel="Count",
+        title="Distribution of Evaluated Scores")
+ax2.legend()
+ax2.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()`,
+      codeLanguage: "python",
+    },
   ],
 };

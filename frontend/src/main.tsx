@@ -13,7 +13,7 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <BrowserRouter>
+      <BrowserRouter basename="/ml">
         <Routes>
           <Route element={<RootLayout />}>
             <Route index element={<Suspense fallback={<PageSkeleton />}><HomePage /></Suspense>} />

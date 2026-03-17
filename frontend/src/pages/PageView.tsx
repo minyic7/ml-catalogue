@@ -6,6 +6,37 @@ import { MarkdownRenderer } from "../components/MarkdownRenderer";
 import { OutputArea, type OutputData } from "../components/OutputArea";
 import { RunButton, type RunMode, type DeviceType } from "../components/RunButton";
 import { executeCode } from "../api/execute";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function PageSkeleton() {
+  return (
+    <div className="animate-in fade-in duration-150">
+      <div className="mb-6 flex items-center gap-2">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-4 w-4" />
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-4 w-4" />
+        <Skeleton className="h-4 w-28" />
+      </div>
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-3/4" />
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-5/6" />
+          <Skeleton className="h-4 w-4/6" />
+        </div>
+        <Skeleton className="h-48 w-full rounded-lg" />
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export { PageSkeleton };
 
 export default function PageView() {
   const { levelSlug, chapterSlug, pageSlug } = useParams();
@@ -78,7 +109,7 @@ export default function PageView() {
   const hasContent = page.markdownContent || page.codeSnippet;
 
   return (
-    <div>
+    <div className="animate-in fade-in duration-200">
       <nav className="mb-6 text-sm text-muted-foreground">
         <Link to={`/${level.slug}`} className="hover:text-foreground">
           {level.title}

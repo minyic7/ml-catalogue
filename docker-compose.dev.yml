@@ -1,0 +1,7 @@
+services:
+  ml-catalogue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"

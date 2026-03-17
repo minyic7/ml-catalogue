@@ -31,7 +31,7 @@ jobs:
         run: pnpm --filter frontend lint
 
       - name: Type check
-        run: pnpm --filter frontend tsc --noEmit
+        run: pnpm --filter frontend typecheck
 
       - name: Build
         run: pnpm --filter frontend build

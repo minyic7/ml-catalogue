@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Outlet, useOutletContext } from 'react-router-dom';
 import { MenuIcon, SearchIcon } from 'lucide-react';
 
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import Sidebar from '@/components/Sidebar';
 import SearchDialog from '@/components/SearchDialog';
 import { ThemeProvider } from '@/components/ThemeProvider';
@@ -88,7 +89,9 @@ export default function RootLayout() {
         </Sheet>
 
         <main className="flex-1 overflow-auto p-4 lg:p-6">
-          <Outlet context={{ openSearch: () => setSearchOpen(true) }} />
+          <ErrorBoundary>
+            <Outlet context={{ openSearch: () => setSearchOpen(true) }} />
+          </ErrorBoundary>
         </main>
       </div>
 

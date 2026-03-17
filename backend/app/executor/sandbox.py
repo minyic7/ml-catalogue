@@ -58,6 +58,8 @@ async def run_sandboxed(
     timeout: float,
     env: dict[str, str] | None = None,
     memory_limit: int = _DEFAULT_MEMORY_LIMIT,
+    mode: str = "quick",
+    device: str = "cpu",
 ) -> ExecutionResult:
     """Execute a Python code snippet in a sandboxed subprocess.
 

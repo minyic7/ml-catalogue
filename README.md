@@ -2,6 +2,14 @@
 
 A machine learning model catalogue application.
 
+## Live Demo
+
+The app is deployed on a Mac Mini and exposed via a Cloudflare Quick Tunnel. The public URL is ephemeral and changes on each deploy/restart. To find the current URL, run on the Mac Mini:
+
+```bash
+docker compose logs cloudflared
+```
+
 ## Tech Stack
 
 - **Frontend:** React 19, TypeScript, Vite
@@ -45,15 +53,43 @@ pnpm lint       # Run ESLint (frontend) + Ruff (backend)
 pnpm format     # Run Prettier (frontend) + Ruff format (backend)
 ```
 
+## Deployment
+
+The app runs as a single Docker container on a Mac Mini (M4, ARM64), with a Cloudflare Quick Tunnel for public access.
+
+### Production deploy
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+This starts the app container and a `cloudflared` container that creates a Quick Tunnel. The tunnel URL is logged in the cloudflared container stdout:
+
+```bash
+docker compose logs cloudflared
+```
+
+### CI/CD
+
+Pushing to `main` triggers a GitHub Actions workflow that:
+
+1. Builds a Docker image and pushes it to GHCR
+2. Deploys to the Mac Mini over Tailscale SSH
+3. The cloudflared container automatically provisions a new Quick Tunnel URL
+
 ## Project Structure
 
 ```
 ml-catalogue/
-├── frontend/       # React + TypeScript + Vite
-│   ├── src/        # Application source code
-│   └── public/     # Static assets
-├── backend/        # Python + FastAPI
-│   └── app/        # Application source code
-├── package.json    # Root monorepo scripts
-└── .editorconfig   # Shared editor settings
+├── frontend/           # React + TypeScript + Vite
+│   ├── src/            # Application source code
+│   └── public/         # Static assets
+├── backend/            # Python + FastAPI
+│   └── app/            # Application source code
+├── Dockerfile          # Multi-stage build (frontend + backend)
+├── docker-compose.yml  # Base Compose config
+├── docker-compose.prod.yml  # Production overrides
+├── .dockerignore       # Docker build exclusions
+├── package.json        # Root monorepo scripts
+└── .editorconfig       # Shared editor settings
 ```

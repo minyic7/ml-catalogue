@@ -107,6 +107,282 @@ print(f"Speedup             : {single_time / batch_time:.1f}x")`,
       codeLanguage: "python",
     },
     {
+      title: "A/B Testing in Production",
+      slug: "ab-testing-production",
+      description:
+        "Traffic splitting, canary deployments, shadow mode, statistical rigour, multi-armed bandits, and experiment infrastructure for ML models",
+      markdownContent: `# A/B Testing in Production
+
+A/B testing for ML models means comparing a **challenger** (new model) against the **champion** (current model) using live traffic. Offline metrics like validation accuracy don't always predict real-world performance — an A/B test measures actual **business impact** before a full rollout.
+
+## Why A/B Test Models?
+
+Offline evaluation has blind spots:
+
+- **Distribution mismatch** — holdout data may not reflect current production traffic.
+- **Proxy metrics** — accuracy on a test set doesn't guarantee improvement in revenue, engagement, or conversion.
+- **Interaction effects** — a model change may alter user behaviour in ways that only surface online.
+
+A/B testing closes the loop between offline development and online impact.
+
+## Traffic Splitting
+
+The simplest approach is **percentage-based routing**: send a fixed fraction of requests to each model variant.
+
+$$
+P(\\text{challenger}) = \\frac{n_{\\text{challenger}}}{n_{\\text{total}}} = \\alpha, \\quad P(\\text{champion}) = 1 - \\alpha
+$$
+
+A common starting split is $\\alpha = 0.1$ (90/10 champion/challenger). The key requirement is **random assignment** — each user or request must be independently routed to avoid selection bias.
+
+### Canary Deployments
+
+A canary deployment is traffic splitting with **gradual ramp-up**:
+
+1. Start at 1–5 % challenger traffic.
+2. Monitor key metrics for a burn-in period.
+3. If metrics are healthy, increase to 10 %, 25 %, 50 %.
+4. If any guardrail metric breaches a threshold, **roll back** immediately.
+
+This limits blast radius: if the challenger is broken, only a small fraction of users are affected.
+
+### Shadow Mode (Dark Launching)
+
+In shadow mode, the challenger runs **in parallel** but its predictions are **never served** to users. Both models receive the same inputs; outputs are logged and compared offline.
+
+$$
+\\text{shadow\\_divergence} = \\frac{1}{n} \\sum_{i=1}^{n} \\mathbb{1}[\\hat{y}_{\\text{champion}}^{(i)} \\neq \\hat{y}_{\\text{challenger}}^{(i)}]
+$$
+
+Shadow mode is risk-free — users always see the champion — making it ideal for validating a new model before any live exposure.
+
+## Statistical Rigour
+
+An A/B test is a **hypothesis test**. The null hypothesis is that the challenger is no better than the champion:
+
+$$
+H_0: \\mu_{\\text{challenger}} = \\mu_{\\text{champion}}, \\quad H_1: \\mu_{\\text{challenger}} \\neq \\mu_{\\text{champion}}
+$$
+
+Key considerations:
+
+- **Sample size** — must be large enough to detect a meaningful effect. The required sample size depends on baseline rate, minimum detectable effect (MDE), and desired power ($1 - \\beta$, typically 0.8).
+- **Duration** — run the test long enough to capture weekly/seasonal cycles (at least 1–2 weeks for most products).
+- **Significance level** — typically $\\alpha = 0.05$. Reject $H_0$ when $p < \\alpha$.
+- **Multiple comparisons** — testing many metrics inflates false-positive rate. Apply Bonferroni or Benjamini–Hochberg corrections.
+
+> **Link:** For foundational concepts on hypothesis testing and significance, see the *A/B Testing Basics* chapter.
+
+## Metrics to Track
+
+A well-designed experiment tracks three tiers of metrics:
+
+| Tier | Examples | Purpose |
+|------|----------|---------|
+| **Business metrics** | Conversion rate, revenue per user, click-through rate | Ultimate success criteria |
+| **Model metrics** | Accuracy, AUC, precision, recall, latency (mean & p50) | Technical performance |
+| **Guardrail metrics** | Error rate, latency p99, crash rate, timeout rate | Safety — must not degrade |
+
+The experiment succeeds only if business metrics improve **and** guardrail metrics remain within acceptable bounds.
+
+## Multi-Armed Bandits
+
+Classical A/B testing allocates traffic **statically**. Multi-armed bandits (MABs) allocate traffic **adaptively** — shifting more requests to the better-performing variant over time.
+
+### Thompson Sampling
+
+Each arm $k$ maintains a Beta posterior over its success probability:
+
+$$
+\\theta_k \\sim \\text{Beta}(\\alpha_k, \\beta_k)
+$$
+
+At each step:
+1. Sample $\\hat{\\theta}_k$ from each arm's posterior.
+2. Route the request to the arm with the highest $\\hat{\\theta}_k$.
+3. Observe the reward and update: success → $\\alpha_k += 1$, failure → $\\beta_k += 1$.
+
+Thompson sampling naturally balances **exploration** (trying uncertain arms) and **exploitation** (favouring the current best).
+
+### Upper Confidence Bound (UCB)
+
+UCB selects the arm that maximises:
+
+$$
+\\text{UCB}_k = \\hat{\\mu}_k + \\sqrt{\\frac{2 \\ln t}{n_k}}
+$$
+
+where $\\hat{\\mu}_k$ is the observed mean reward for arm $k$, $t$ is the total number of rounds, and $n_k$ is the number of times arm $k$ has been selected. The second term is an **optimism bonus** that shrinks as the arm is pulled more often.
+
+## Common Pitfalls
+
+- **Peeking too early** — checking results before the required sample size inflates false-positive rates. Use sequential testing or always wait for full power.
+- **Novelty effect** — users may engage more with a new experience simply because it's new. Allow a burn-in period before measuring.
+- **Network effects** — in social products, one user's experience depends on others. Standard i.i.d. assumptions break down; consider cluster-randomised designs.
+- **Segment differences** — a model may improve results for one segment while hurting another. Always check heterogeneous treatment effects.
+
+## Infrastructure
+
+Running A/B tests at scale requires dedicated tooling:
+
+- **Feature flags** — toggle model variants per user/request without redeploying (e.g., LaunchDarkly, Unleash).
+- **Traffic routers** — load balancers or API gateways that implement splitting logic (e.g., Istio, Envoy).
+- **Experiment platforms** — end-to-end systems for assignment, logging, and analysis (e.g., Optimizely, internal platforms).
+- **Logging and attribution** — every prediction must be tagged with its experiment variant for correct post-hoc analysis.
+
+## Code Demo
+
+The code below simulates:
+1. An A/B test between two models with different accuracy rates, including a statistical significance test.
+2. A Thompson sampling multi-armed bandit that adaptively allocates traffic between two models, plotting cumulative reward and traffic allocation over time.`,
+      codeSnippet: `import numpy as np
+import matplotlib.pyplot as plt
+from scipy import stats
+
+np.random.seed(42)
+
+# ============================================================
+# Part 1: Classical A/B Test Simulation
+# ============================================================
+print("=" * 55)
+print("Part 1: Classical A/B Test — Champion vs Challenger")
+print("=" * 55)
+
+n_requests = 2000
+champion_accuracy = 0.72   # true conversion/success rate
+challenger_accuracy = 0.76  # challenger is genuinely better
+
+# Simulate traffic split: 90/10
+n_champion = int(n_requests * 0.9)
+n_challenger = n_requests - n_champion
+
+champion_results = np.random.binomial(1, champion_accuracy, n_champion)
+challenger_results = np.random.binomial(1, challenger_accuracy, n_challenger)
+
+champion_rate = champion_results.mean()
+challenger_rate = challenger_results.mean()
+lift = (challenger_rate - champion_rate) / champion_rate * 100
+
+print(f"\\nTraffic split: {n_champion} champion / {n_challenger} challenger")
+print(f"Champion conversion rate   : {champion_rate:.4f}")
+print(f"Challenger conversion rate  : {challenger_rate:.4f}")
+print(f"Observed lift               : {lift:+.2f}%")
+
+# Two-proportion z-test
+n1, p1 = n_champion, champion_rate
+n2, p2 = n_challenger, challenger_rate
+p_pool = (p1 * n1 + p2 * n2) / (n1 + n2)
+se = np.sqrt(p_pool * (1 - p_pool) * (1/n1 + 1/n2))
+z_stat = (p2 - p1) / se
+p_value = 2 * (1 - stats.norm.cdf(abs(z_stat)))
+
+print(f"\\nZ-statistic : {z_stat:.4f}")
+print(f"p-value     : {p_value:.6f}")
+print(f"Verdict     : {'SIGNIFICANT — challenger wins!' if p_value < 0.05 else 'Not significant — keep champion'}")
+
+# ============================================================
+# Part 2: Thompson Sampling Multi-Armed Bandit
+# ============================================================
+print("\\n" + "=" * 55)
+print("Part 2: Thompson Sampling Multi-Armed Bandit")
+print("=" * 55)
+
+true_rates = [champion_accuracy, challenger_accuracy]
+arm_names = ["Champion", "Challenger"]
+n_rounds = 1500
+
+# Beta distribution parameters (start with uniform prior)
+alphas = [1.0, 1.0]
+betas_param = [1.0, 1.0]
+
+chosen_arms = []
+rewards = []
+cumulative_rewards = []
+arm_counts = [0, 0]
+total_reward = 0
+
+for t in range(n_rounds):
+    # Sample from each arm's posterior
+    samples = [np.random.beta(alphas[k], betas_param[k]) for k in range(2)]
+    chosen = int(np.argmax(samples))
+
+    # Observe reward
+    reward = np.random.binomial(1, true_rates[chosen])
+
+    # Update posterior
+    alphas[chosen] += reward
+    betas_param[chosen] += 1 - reward
+
+    chosen_arms.append(chosen)
+    rewards.append(reward)
+    arm_counts[chosen] += 1
+    total_reward += reward
+    cumulative_rewards.append(total_reward)
+
+chosen_arms = np.array(chosen_arms)
+cumulative_rewards = np.array(cumulative_rewards)
+
+print(f"\\nTotal rounds: {n_rounds}")
+for k in range(2):
+    frac = arm_counts[k] / n_rounds * 100
+    print(f"  {arm_names[k]:12s}: pulled {arm_counts[k]:5d} times ({frac:.1f}%)")
+print(f"Total reward: {total_reward} / {n_rounds} ({total_reward/n_rounds:.3f} avg)")
+
+# Optimal reward (always picking the best arm)
+optimal_reward = np.cumsum(np.random.binomial(1, max(true_rates), n_rounds))
+regret = optimal_reward - cumulative_rewards
+
+# ============================================================
+# Plots
+# ============================================================
+fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+
+# Plot 1: A/B test results bar chart
+ax = axes[0, 0]
+bars = ax.bar(arm_names, [champion_rate, challenger_rate],
+              color=["steelblue", "coral"], edgecolor="black", linewidth=0.8)
+ax.axhline(y=champion_accuracy, color="steelblue", linestyle="--", alpha=0.5, label="True champion rate")
+ax.axhline(y=challenger_accuracy, color="coral", linestyle="--", alpha=0.5, label="True challenger rate")
+ax.set_ylabel("Conversion Rate")
+ax.set_title(f"A/B Test Results (p={p_value:.4f})")
+ax.legend(fontsize=8)
+ax.set_ylim(0, 1)
+
+# Plot 2: Cumulative reward over time
+ax = axes[0, 1]
+ax.plot(cumulative_rewards, color="coral", label="Thompson Sampling")
+ax.plot(optimal_reward, color="grey", linestyle="--", alpha=0.7, label="Optimal (always best arm)")
+ax.set_xlabel("Round")
+ax.set_ylabel("Cumulative Reward")
+ax.set_title("Cumulative Reward Over Time")
+ax.legend(fontsize=8)
+
+# Plot 3: Traffic allocation over time (rolling window)
+ax = axes[1, 0]
+window = 50
+challenger_frac = np.convolve(chosen_arms, np.ones(window)/window, mode="valid")
+ax.plot(challenger_frac, color="coral", label="Challenger fraction")
+ax.axhline(y=0.5, color="grey", linestyle=":", alpha=0.5)
+ax.set_xlabel("Round")
+ax.set_ylabel("Fraction of Traffic → Challenger")
+ax.set_title(f"Traffic Allocation (rolling {window}-round window)")
+ax.set_ylim(0, 1)
+ax.legend(fontsize=8)
+
+# Plot 4: Cumulative regret
+ax = axes[1, 1]
+ax.plot(regret, color="purple")
+ax.set_xlabel("Round")
+ax.set_ylabel("Cumulative Regret")
+ax.set_title("Cumulative Regret (Thompson Sampling)")
+
+plt.tight_layout()
+plt.savefig("output.png", dpi=100)
+plt.show()
+print("\\nPlot saved to output.png")`,
+      codeLanguage: "python",
+    },
+    {
       title: "Monitoring & Observability",
       slug: "monitoring-observability",
       description:

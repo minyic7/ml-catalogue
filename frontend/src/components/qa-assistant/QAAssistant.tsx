@@ -6,8 +6,13 @@ import { ChatDialog, type InitialContext } from "./ChatDialog"
 import { ScreenshotCapture } from "./ScreenshotCapture"
 
 /**
- * QAAssistant — parent component that composes Toolbox + ChatDialog
- * and wires up text-selection–based "highlight & ask" behaviour.
+ * QAAssistant — parent orchestrator that composes Toolbox, ChatDialog,
+ * ScreenshotCapture, and highlight-to-ask logic.  Mounted once in the
+ * app shell (RootLayout) so it is available on every page.
+ *
+ * The Toolbox remains visible even while the chat panel is open so
+ * users can capture additional screenshots or highlight more text
+ * mid-conversation.
  */
 export function QAAssistant() {
   const [chatOpen, setChatOpen] = React.useState(false)
@@ -29,9 +34,23 @@ export function QAAssistant() {
     return () => document.removeEventListener("selectionchange", checkSelection)
   }, [])
 
+  // ------- Escape key closes the chat dialog -------
+  React.useEffect(() => {
+    if (!chatOpen) return
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setChatOpen(false)
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [chatOpen])
+
   // ------- Build a human-readable page label from the URL path -------
   const pageLabel = React.useMemo(() => {
-    // pathname like "/level-1/chapter-1/page-1" → "level-1 > chapter-1 > page-1"
+    // pathname like "/level-1/chapter-1/page-1" → "Level 1 > Chapter 1 > Page 1"
     const parts = location.pathname.split("/").filter(Boolean)
     if (parts.length === 0) return undefined
     return parts
@@ -42,6 +61,21 @@ export function QAAssistant() {
       )
       .join(" > ")
   }, [location.pathname])
+
+  // ------- Extract page text content for richer context -------
+  const pageContent = React.useMemo(() => {
+    const main = document.querySelector("main")
+    if (!main) return pageLabel
+    const text = main.innerText?.trim()
+    // Cap at a reasonable length to avoid blowing up token usage
+    if (text && text.length > 0) {
+      const maxChars = 4000
+      return text.length > maxChars ? text.slice(0, maxChars) + "…" : text
+    }
+    return pageLabel
+    // Re-derive when the route changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, pageLabel])
 
   // ------- Highlight / Ask button handler -------
   const handleHighlightClick = React.useCallback(() => {
@@ -88,7 +122,8 @@ export function QAAssistant() {
 
   return (
     <>
-      {!chatOpen && !screenshotActive && (
+      {/* Toolbox is always visible except during screenshot capture */}
+      {!screenshotActive && (
         <Toolbox
           onScreenshotClick={handleScreenshotClick}
           onHighlightClick={handleHighlightClick}
@@ -105,7 +140,7 @@ export function QAAssistant() {
         isOpen={chatOpen}
         onClose={handleClose}
         initialContext={initialContext}
-        pageContext={pageLabel}
+        pageContext={pageContent}
       />
     </>
   )

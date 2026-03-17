@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
+import { CheckCircle2Icon, CircleIcon } from "lucide-react";
 import { CONTENT_STRUCTURE } from "../config/content";
 import { CodeBlock } from "../components/CodeBlock";
 import { MarkdownRenderer } from "../components/MarkdownRenderer";
 import { OutputArea, type OutputData } from "../components/OutputArea";
 import { RunButton, type RunMode, type DeviceType } from "../components/RunButton";
+import { Button } from "../components/ui/button";
+import { useProgress } from "../hooks/useProgress";
 import { executeCode } from "../api/execute";
 
 const TIMEOUT_LIMITS: Record<RunMode, number> = {
@@ -159,23 +162,27 @@ export default function PageView() {
   if (!page) return <Navigate to="/404" replace />;
 
   const hasContent = page.markdownContent || page.codeSnippet;
+  const currentSlug = `${levelSlug}/${chapterSlug}/${pageSlug}`;
 
   return (
     <div className="animate-in fade-in duration-200">
-      <nav className="mb-6 text-sm text-muted-foreground">
-        <Link to={`/${level.slug}`} className="hover:text-foreground">
-          {level.title}
-        </Link>
-        <span className="mx-2">&gt;</span>
-        <Link
-          to={`/${level.slug}/${chapter.slug}`}
-          className="hover:text-foreground"
-        >
-          {chapter.title}
-        </Link>
-        <span className="mx-2">&gt;</span>
-        <span className="text-foreground">{page.title}</span>
-      </nav>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <nav className="text-sm text-muted-foreground">
+          <Link to={`/${level.slug}`} className="hover:text-foreground">
+            {level.title}
+          </Link>
+          <span className="mx-2">&gt;</span>
+          <Link
+            to={`/${level.slug}/${chapter.slug}`}
+            className="hover:text-foreground"
+          >
+            {chapter.title}
+          </Link>
+          <span className="mx-2">&gt;</span>
+          <span className="text-foreground">{page.title}</span>
+        </nav>
+        <MarkAsReadButton slug={currentSlug} />
+      </div>
 
       {hasContent ? (
         <div className="space-y-6">
@@ -217,5 +224,31 @@ export default function PageView() {
         </>
       )}
     </div>
+  );
+}
+
+function MarkAsReadButton({ slug }: { slug: string }) {
+  const { isRead, toggleRead } = useProgress();
+  const read = isRead(slug);
+
+  return (
+    <Button
+      variant={read ? "secondary" : "outline"}
+      size="sm"
+      onClick={() => toggleRead(slug)}
+      className="shrink-0 gap-1.5"
+    >
+      {read ? (
+        <>
+          <CheckCircle2Icon className="size-4 text-green-500" />
+          <span>Read</span>
+        </>
+      ) : (
+        <>
+          <CircleIcon className="size-4" />
+          <span>Mark as read</span>
+        </>
+      )}
+    </Button>
   );
 }

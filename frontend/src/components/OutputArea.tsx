@@ -37,7 +37,7 @@ export function OutputArea({ output }: OutputAreaProps) {
           {output.charts.map((chart, index) => (
             <img
               key={index}
-              src={chart}
+              src={`data:image/png;base64,${chart}`}
               alt={`Chart ${index + 1}`}
               className="max-w-full rounded-lg border border-border"
             />

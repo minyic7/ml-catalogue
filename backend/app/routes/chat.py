@@ -97,6 +97,12 @@ class ChatRequest(BaseModel):
     page_context: str | None = Field(
         default=None, description="Optional current page content for context"
     )
+    api_key: str | None = Field(
+        default=None, description="Optional user-provided Anthropic API key"
+    )
+    model: str | None = Field(
+        default=None, description="Optional model override"
+    )
 
 
 class ChatResponse(BaseModel):
@@ -129,7 +135,19 @@ class ContextUsageResponse(BaseModel):
 @router.post("", response_model=ChatResponse)
 async def chat(request: ChatRequest) -> ChatResponse:
     """Send a message to Claude and get a response, with per-session history."""
-    client = _get_client()
+    # Use user-provided API key if supplied, otherwise fall back to server key
+    if request.api_key:
+        client = anthropic.Anthropic(api_key=request.api_key)
+    else:
+        try:
+            client = _get_client()
+        except HTTPException:
+            raise HTTPException(
+                status_code=422,
+                detail="No API key configured. Please open Settings (gear icon) in the QA toolbox and enter your Anthropic API key.",
+            )
+
+    model = request.model or DEFAULT_MODEL
     session = _get_or_create_session(request.session_id)
 
     # Build user message content
@@ -180,11 +198,14 @@ async def chat(request: ChatRequest) -> ChatResponse:
     # Call Claude API
     try:
         api_response = client.messages.create(
-            model=DEFAULT_MODEL,
+            model=model,
             max_tokens=4096,
             system=system or anthropic.NOT_GIVEN,
             messages=session["messages"],
         )
+    except anthropic.AuthenticationError:
+        session["messages"].pop()
+        raise HTTPException(status_code=401, detail="Invalid API key. Please check your Anthropic API key in settings.")
     except anthropic.APIError as e:
         # Remove the failed user message from history
         session["messages"].pop()

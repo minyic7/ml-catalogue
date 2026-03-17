@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Camera, MessageSquare, TextSelect, X } from "lucide-react"
+import { Camera, MessageSquare, Settings, TextSelect, X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -18,6 +18,7 @@ interface ToolboxProps {
   onScreenshotClick?: () => void
   onHighlightClick?: () => void
   onAskClick?: () => void
+  onSettingsClick?: () => void
   /** When true, the highlight/ask button shows an active visual indicator */
   hasSelection?: boolean
   className?: string
@@ -64,7 +65,7 @@ function clampPosition(
   return { left: clampedLeft, top: clampedTop }
 }
 
-function Toolbox({ onScreenshotClick, onHighlightClick, onAskClick, hasSelection, className }: ToolboxProps) {
+function Toolbox({ onScreenshotClick, onHighlightClick, onAskClick, onSettingsClick, hasSelection, className }: ToolboxProps) {
   const [expanded, setExpanded] = React.useState(false)
   const [position, setPosition] = React.useState(loadPosition)
   const [isDragging, setIsDragging] = React.useState(false)
@@ -326,6 +327,21 @@ function Toolbox({ onScreenshotClick, onHighlightClick, onAskClick, hasSelection
                 </TooltipContent>
               </Tooltip>
               <div className="mx-0.5 h-5 w-px bg-border dark:bg-input" />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={onSettingsClick}
+                    aria-label="Settings"
+                  >
+                    <Settings className="size-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  Settings
+                </TooltipContent>
+              </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button

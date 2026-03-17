@@ -33,12 +33,15 @@ except ImportError:
         charts: list[str] = field(default_factory=list)
         execution_time_ms: float = 0.0
 
+from app.executor.security import check_code_security
 
 _PREAMBLE_PATH = Path(__file__).with_name("preamble.py")
 
-# Default memory limit: 1 GB (matplotlib + numpy need substantial address space)
-_DEFAULT_MEMORY_LIMIT = 1024 * 1024 * 1024
+# Default memory limit: 512 MB
+_DEFAULT_MEMORY_LIMIT = 512 * 1024 * 1024
 
+# Hard kill grace period beyond the normal timeout (seconds)
+_HARD_KILL_GRACE = 5
 
 def _build_preexec(memory_limit: int):
     """Return a preexec_fn that sets resource limits (Linux only)."""
@@ -50,6 +53,9 @@ def _build_preexec(memory_limit: int):
         resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
         # Disable core dumps
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+        # Limit writable file size to 10 MB (prevents disk-fill attacks)
+        max_fsize = 10 * 1024 * 1024
+        resource.setrlimit(resource.RLIMIT_FSIZE, (max_fsize, max_fsize))
 
     return _set_limits
 
@@ -68,11 +74,28 @@ async def run_sandboxed(
         code: Python source code to execute.
         timeout: Maximum wall-clock seconds before the process is killed.
         env: Optional extra environment variables for the subprocess.
-        memory_limit: Maximum address-space in bytes (default 1 GB).
+        memory_limit: Maximum address-space in bytes (default 512 MB).
 
     Returns:
         ExecutionResult with stdout, stderr, error, charts, and timing.
     """
+    # --- Pre-execution security checks ---
+    try:
+        violations = check_code_security(code)
+    except SyntaxError:
+        # Let the actual Python interpreter report the syntax error later
+        violations = []
+
+    if violations:
+        msg = "Security policy violation:\n" + "\n".join(f"  - {v}" for v in violations)
+        return ExecutionResult(
+            stdout="",
+            stderr="",
+            error=msg,
+            charts=[],
+            execution_time_ms=0.0,
+        )
+
     tmp_dir = tempfile.mkdtemp(prefix="sandbox_")
     chart_dir = os.path.join(tmp_dir, "charts")
     os.makedirs(chart_dir)
@@ -90,6 +113,10 @@ async def run_sandboxed(
     proc_env = os.environ.copy()
     proc_env["_SANDBOX_CHART_DIR"] = chart_dir
     proc_env["_SANDBOX_CHART_MANIFEST"] = chart_manifest
+    # Limit library thread counts to reduce resource usage
+    proc_env["OPENBLAS_NUM_THREADS"] = "1"
+    proc_env["MKL_NUM_THREADS"] = "1"
+    proc_env["OMP_NUM_THREADS"] = "1"
     # Best-effort network restriction: unset proxy vars, set offline hint
     for key in list(proc_env.keys()):
         if "proxy" in key.lower():
@@ -99,18 +126,28 @@ async def run_sandboxed(
 
     def _execute() -> ExecutionResult:
         start = time.perf_counter()
+        proc = None
         try:
             try:
-                result = subprocess.run(
+                proc = subprocess.Popen(
                     ["python", script_path],
-                    capture_output=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
                     text=True,
-                    timeout=timeout,
                     cwd=tmp_dir,
                     env=proc_env,
                     preexec_fn=_build_preexec(memory_limit),
                 )
+                stdout, stderr = proc.communicate(timeout=timeout)
             except subprocess.TimeoutExpired:
+                # Graceful terminate, then hard kill after grace period
+                if proc is not None:
+                    proc.terminate()
+                    try:
+                        proc.wait(timeout=_HARD_KILL_GRACE)
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
+                        proc.wait()
                 elapsed_ms = (time.perf_counter() - start) * 1000
                 return ExecutionResult(
                     stdout="",
@@ -122,12 +159,12 @@ async def run_sandboxed(
 
             elapsed_ms = (time.perf_counter() - start) * 1000
 
-            stdout = result.stdout or ""
-            stderr = result.stderr or ""
+            stdout = stdout or ""
+            stderr = stderr or ""
 
             # Detect traceback in stderr
             error: str | None = None
-            if stderr and ("Traceback" in stderr or result.returncode != 0):
+            if stderr and ("Traceback" in stderr or proc.returncode != 0):
                 error = stderr.strip()
 
             # Read captured charts

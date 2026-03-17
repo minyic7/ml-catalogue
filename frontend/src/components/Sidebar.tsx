@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { CheckCircle2Icon } from "lucide-react";
 
 import {
   Collapsible,
@@ -7,6 +8,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { CONTENT_STRUCTURE } from "@/config/content";
+import { useProgress } from "@/hooks/useProgress";
 import { cn } from "@/lib/utils";
 
 export default function Sidebar({
@@ -15,6 +17,7 @@ export default function Sidebar({
   onNavigate?: () => void;
 }) {
   const { pathname } = useLocation();
+  const { isRead, getChapterProgress } = useProgress();
 
   // Track which levels and chapters are open.
   // Default all levels to open so the full tree is visible on first load.
@@ -48,6 +51,7 @@ export default function Sidebar({
             {level.chapters.map((chapter) => {
               const chapterKey = `${level.slug}/${chapter.slug}`;
               const isChapterOpen = openChapters[chapterKey] ?? true;
+              const chapterProgress = getChapterProgress(level.slug, chapter.slug);
 
               return (
                 <Collapsible
@@ -56,14 +60,31 @@ export default function Sidebar({
                   onOpenChange={() => toggleChapter(chapterKey)}
                 >
                   <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between py-1.5 pl-6 pr-4 font-medium text-muted-foreground hover:bg-accent hover:text-foreground">
-                    <span>{chapter.title}</span>
-                    <ChevronIndicator open={isChapterOpen} />
+                    <span className="flex items-center gap-1.5">
+                      {chapterProgress.completed === chapterProgress.total && chapterProgress.total > 0 && (
+                        <CheckCircle2Icon className="size-3.5 shrink-0 text-green-500" />
+                      )}
+                      {chapter.title}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className={cn(
+                        "text-xs tabular-nums",
+                        chapterProgress.completed === chapterProgress.total && chapterProgress.total > 0
+                          ? "text-green-500"
+                          : "text-muted-foreground/60",
+                      )}>
+                        {chapterProgress.completed}/{chapterProgress.total}
+                      </span>
+                      <ChevronIndicator open={isChapterOpen} />
+                    </span>
                   </CollapsibleTrigger>
 
                   <CollapsibleContent>
                     {chapter.pages.map((page) => {
                       const href = `/${level.slug}/${chapter.slug}/${page.slug}`;
+                      const pageSlug = `${level.slug}/${chapter.slug}/${page.slug}`;
                       const isActive = pathname === href;
+                      const pageRead = isRead(pageSlug);
 
                       return (
                         <Link
@@ -71,12 +92,15 @@ export default function Sidebar({
                           to={href}
                           onClick={onNavigate}
                           className={cn(
-                            "block py-1.5 pl-10 pr-4 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+                            "flex items-center gap-1.5 py-1.5 pl-10 pr-4 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
                             isActive &&
                               "bg-accent font-medium text-foreground",
                           )}
                         >
-                          {page.title}
+                          {pageRead && (
+                            <CheckCircle2Icon className="size-3 shrink-0 text-green-500" />
+                          )}
+                          <span>{page.title}</span>
                         </Link>
                       );
                     })}

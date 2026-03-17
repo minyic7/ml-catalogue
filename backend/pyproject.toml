@@ -12,6 +12,7 @@ dependencies = [
     "pandas>=2.2.3",
     "scikit-learn>=1.6.1",
     "scipy>=1.15.2",
+    "statsmodels>=0.14.4",
     "torch>=2.6.0",
     "uvicorn[standard]>=0.42.0",
 ]

@@ -9,8 +9,7 @@ import platform
 import pytest
 
 from app.executor.sandbox import run_sandboxed
-from app.executor.security import BLOCKED_MODULES, check_code_security
-
+from app.executor.security import check_code_security
 
 # ---------------------------------------------------------------------------
 # AST pre-check: blocked imports
@@ -22,8 +21,21 @@ class TestBlockedImports:
 
     @pytest.mark.parametrize(
         "module",
-        ["os", "sys", "subprocess", "shutil", "socket", "http", "urllib", "requests",
-         "ctypes", "importlib", "pathlib", "pickle", "multiprocessing"],
+        [
+            "os",
+            "sys",
+            "subprocess",
+            "shutil",
+            "socket",
+            "http",
+            "urllib",
+            "requests",
+            "ctypes",
+            "importlib",
+            "pathlib",
+            "pickle",
+            "multiprocessing",
+        ],
     )
     def test_blocked_import(self, module: str):
         violations = check_code_security(f"import {module}")
@@ -73,9 +85,26 @@ class TestAllowedImports:
 
     @pytest.mark.parametrize(
         "module",
-        ["numpy", "pandas", "matplotlib", "sklearn", "scipy", "torch",
-         "statsmodels", "sqlite3", "math", "random", "collections",
-         "itertools", "functools", "json", "re", "string", "datetime", "time"],
+        [
+            "numpy",
+            "pandas",
+            "matplotlib",
+            "sklearn",
+            "scipy",
+            "torch",
+            "statsmodels",
+            "sqlite3",
+            "math",
+            "random",
+            "collections",
+            "itertools",
+            "functools",
+            "json",
+            "re",
+            "string",
+            "datetime",
+            "time",
+        ],
     )
     def test_allowed_import(self, module: str):
         violations = check_code_security(f"import {module}")
@@ -86,7 +115,9 @@ class TestAllowedImports:
         assert violations == []
 
     def test_allowed_from_import(self):
-        violations = check_code_security("from sklearn.linear_model import LinearRegression")
+        violations = check_code_security(
+            "from sklearn.linear_model import LinearRegression"
+        )
         assert violations == []
 
 
@@ -172,8 +203,14 @@ class TestDangerousAttributes:
 
     @pytest.mark.parametrize(
         "attr",
-        ["__subclasses__", "__globals__", "__builtins__", "__code__",
-         "__reduce__", "__import__"],
+        [
+            "__subclasses__",
+            "__globals__",
+            "__builtins__",
+            "__code__",
+            "__reduce__",
+            "__import__",
+        ],
     )
     def test_blocked_attribute(self, attr: str):
         violations = check_code_security(f"x.{attr}")
@@ -219,28 +256,36 @@ class TestSandboxRejectsCode:
     @pytest.mark.asyncio
     async def test_subprocess_rejected(self):
         result = await run_sandboxed(
-            "import subprocess\nsubprocess.run(['ls'])", timeout=10,
+            "import subprocess\nsubprocess.run(['ls'])",
+            timeout=10,
         )
         assert result.error is not None
         assert "Security policy violation" in result.error
 
     @pytest.mark.asyncio
     async def test_eval_rejected(self):
-        result = await run_sandboxed('eval("__import__(\'os\').system(\'id\')")', timeout=10)
+        result = await run_sandboxed(
+            "eval(\"__import__('os').system('id')\")",
+            timeout=10,
+        )
         assert result.error is not None
         assert "Security policy violation" in result.error
 
     @pytest.mark.asyncio
     async def test_dunder_subclasses_rejected(self):
         result = await run_sandboxed(
-            "print(''.__class__.__subclasses__())", timeout=10,
+            "print(''.__class__.__subclasses__())",
+            timeout=10,
         )
         assert result.error is not None
         assert "Security policy violation" in result.error
 
     @pytest.mark.asyncio
     async def test_open_write_rejected(self):
-        result = await run_sandboxed('open("/tmp/hack.txt", "w").write("pwned")', timeout=10)
+        result = await run_sandboxed(
+            'open("/tmp/hack.txt", "w").write("pwned")',
+            timeout=10,
+        )
         assert result.error is not None
         assert "Security policy violation" in result.error
 
@@ -262,7 +307,8 @@ class TestSafeCodeStillRuns:
     @pytest.mark.asyncio
     async def test_numpy_works(self):
         result = await run_sandboxed(
-            "import numpy as np\nprint(np.array([1,2,3]).sum())", timeout=15,
+            "import numpy as np\nprint(np.array([1,2,3]).sum())",
+            timeout=15,
         )
         assert result.error is None
         assert "6" in result.stdout
@@ -305,8 +351,7 @@ class TestSafeCodeStillRuns:
     @pytest.mark.asyncio
     async def test_matplotlib_chart(self):
         code = (
-            "import matplotlib.pyplot as plt\n"
-            "plt.plot([1,2,3],[4,5,6])\nplt.show()\n"
+            "import matplotlib.pyplot as plt\nplt.plot([1,2,3],[4,5,6])\nplt.show()\n"
         )
         result = await run_sandboxed(code, timeout=30)
         assert result.error is None

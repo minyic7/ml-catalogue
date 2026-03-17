@@ -170,9 +170,7 @@ class _SecurityVisitor(ast.NodeVisitor):
     # Names blocked as method calls — only truly dangerous ones that have no
     # legitimate library usage (e.g. builtins.exec()).  compile/eval are
     # excluded because re.compile(), pd.eval(), etc. are legitimate.
-    _BLOCKED_METHOD_CALLS: frozenset[str] = frozenset(
-        {"exec", "__import__"}
-    )
+    _BLOCKED_METHOD_CALLS: frozenset[str] = frozenset({"exec", "__import__"})
 
     def visit_Call(self, node: ast.Call) -> None:  # noqa: N802
         func = node.func
@@ -187,10 +185,7 @@ class _SecurityVisitor(ast.NodeVisitor):
         # Method-call style: builtins.exec(), obj.__import__(), etc.
         # Only block exec/__import__ — compile/eval have legitimate library
         # uses (re.compile, pd.eval).
-        if (
-            isinstance(func, ast.Attribute)
-            and func.attr in self._BLOCKED_METHOD_CALLS
-        ):
+        if isinstance(func, ast.Attribute) and func.attr in self._BLOCKED_METHOD_CALLS:
             self.violations.append(
                 f"Blocked call: '{func.attr}()' via attribute access is not "
                 f"allowed in the sandbox (line {node.lineno})"
@@ -218,7 +213,6 @@ class _SecurityVisitor(ast.NodeVisitor):
 
     def _check_open_write(self, node: ast.Call) -> None:
         """Flag open() calls that use a write mode."""
-        write_modes = {"w", "a", "x", "r+", "w+", "a+", "x+", "wb", "ab", "xb", "r+b"}
         # Check positional mode argument (second arg)
         if len(node.args) >= 2 and isinstance(node.args[1], ast.Constant):
             mode_val = str(node.args[1].value)

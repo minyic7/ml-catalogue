@@ -78,14 +78,13 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          cat >> ~/.ssh/config <<'EOF'
-          Host deploy-target
-            HostName ${{ secrets.DEPLOY_HOST }}
-            User ${{ secrets.DEPLOY_USER }}
-            StrictHostKeyChecking no
-            UserKnownHostsFile /dev/null
-          EOF
-          chmod 600 ~/.ssh/config
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+          printf '%s\n' \
+            "Host deploy-target" \
+            "  HostName ${{ secrets.DEPLOY_HOST }}" \
+            "  User ${{ secrets.DEPLOY_USER }}" \
+            > ~/.ssh/config
+          chmod 600 ~/.ssh/config ~/.ssh/known_hosts
 
       - name: Copy compose files
         run: |

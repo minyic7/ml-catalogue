@@ -10,6 +10,7 @@ import os
 import platform
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -132,7 +133,7 @@ async def run_sandboxed(
         try:
             try:
                 proc = subprocess.Popen(
-                    ["python", script_path],
+                    [sys.executable, script_path],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,

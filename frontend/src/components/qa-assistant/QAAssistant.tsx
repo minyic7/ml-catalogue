@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom"
 
 import { MessageCircle } from "lucide-react"
 
-import { ChatDialog, type InitialContext } from "./ChatDialog"
+import type { InitialContext } from "./ChatDialog"
 import { ScreenshotCapture } from "./ScreenshotCapture"
 import { SettingsDialog } from "./SettingsDialog"
 import { QAToolsContext } from "./QAToolsContext"
@@ -86,10 +86,8 @@ export function QAAssistant({ children }: { children?: React.ReactNode }) {
     const main = document.querySelector("main")
     if (!main) return pageLabel
     const text = main.innerText?.trim()
-    // Cap at a reasonable length to avoid blowing up token usage
     if (text && text.length > 0) {
-      const maxChars = 4000
-      return text.length > maxChars ? text.slice(0, maxChars) + "…" : text
+      return text
     }
     return pageLabel
     // Re-derive when the route changes
@@ -175,8 +173,12 @@ export function QAAssistant({ children }: { children?: React.ReactNode }) {
       onSettingsClick: handleSettingsClick,
       hasSelection,
       screenshotActive,
+      chatOpen,
+      onChatClose: handleClose,
+      initialContext,
+      pageContext: pageContent,
     }),
-    [handleScreenshotClick, handleHighlightClick, handleAskClick, handleSettingsClick, hasSelection, screenshotActive]
+    [handleScreenshotClick, handleHighlightClick, handleAskClick, handleSettingsClick, hasSelection, screenshotActive, chatOpen, handleClose, initialContext, pageContent]
   )
 
   return (
@@ -208,12 +210,7 @@ export function QAAssistant({ children }: { children?: React.ReactNode }) {
           onCancel={handleScreenshotCancel}
         />
       )}
-      <ChatDialog
-        isOpen={chatOpen}
-        onClose={handleClose}
-        initialContext={initialContext}
-        pageContext={pageContent}
-      />
+      {/* ChatDialog is now rendered inline in RootLayout's flex container */}
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </QAToolsContext.Provider>
   )

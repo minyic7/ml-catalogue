@@ -2,6 +2,7 @@ import * as React from "react"
 import {
   ArrowUp,
   Bot,
+  GripVertical,
   ImageIcon,
   Loader2,
   Shrink,
@@ -48,6 +49,21 @@ export interface ChatDialogProps {
 // ---------------------------------------------------------------------------
 
 const AUTO_COMPACT_THRESHOLD = 80 // percent
+const PANEL_WIDTH_KEY = "qa-panel-width"
+const DEFAULT_PANEL_WIDTH = 420
+const MIN_PANEL_WIDTH = 300
+const MAX_PANEL_WIDTH = 800
+
+function getStoredPanelWidth(): number {
+  try {
+    const stored = localStorage.getItem(PANEL_WIDTH_KEY)
+    if (stored) {
+      const w = parseInt(stored, 10)
+      if (w >= MIN_PANEL_WIDTH && w <= MAX_PANEL_WIDTH) return w
+    }
+  } catch { /* ignore */ }
+  return DEFAULT_PANEL_WIDTH
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -66,10 +82,17 @@ function ChatDialog({
   const [contextUsage, setContextUsage] = React.useState<number>(0)
   const [isCompacting, setIsCompacting] = React.useState(false)
   const [sessionId, setSessionId] = React.useState(getSessionId)
+  const [panelWidth, setPanelWidth] = React.useState(getStoredPanelWidth)
 
   const messagesEndRef = React.useRef<HTMLDivElement>(null)
   const inputRef = React.useRef<HTMLTextAreaElement>(null)
   const prevContextRef = React.useRef<InitialContext | null | undefined>(null)
+  const autoSendPendingRef = React.useRef(false)
+
+  // Persist panel width
+  React.useEffect(() => {
+    try { localStorage.setItem(PANEL_WIDTH_KEY, String(panelWidth)) } catch { /* ignore */ }
+  }, [panelWidth])
 
   // Scroll to bottom when messages change
   React.useEffect(() => {
@@ -82,21 +105,6 @@ function ChatDialog({
       setTimeout(() => inputRef.current?.focus(), 100)
     }
   }, [isOpen])
-
-  // Handle new initial context arriving (e.g. user highlights text then opens chat)
-  React.useEffect(() => {
-    if (!isOpen || !initialContext) return
-    if (prevContextRef.current === initialContext) return
-    prevContextRef.current = initialContext
-
-    if (initialContext.type === "image") {
-      setPastedImage(initialContext.data)
-    }
-    // For text, pre-fill input with a question about the highlighted snippet
-    if (initialContext.type === "text" && initialContext.data) {
-      setInput(`Explain this:\n\n> ${initialContext.data}`)
-    }
-  }, [isOpen, initialContext])
 
   // ------ Context usage polling ------
   const refreshContextUsage = React.useCallback(async () => {
@@ -117,15 +125,16 @@ function ChatDialog({
   }, [sessionId])
 
   // ------ Send message ------
-  const handleSend = React.useCallback(async () => {
-    const text = input.trim()
-    if (!text && !pastedImage) return
+  const handleSend = React.useCallback(async (overrideText?: string, overrideImage?: string | null) => {
+    const text = (overrideText ?? input).trim()
+    const image = overrideImage !== undefined ? overrideImage : pastedImage
+    if (!text && !image) return
     if (isLoading) return
 
     const userMessage: ChatMessage = {
       role: "user",
       content: text || "(image)",
-      image: pastedImage ?? undefined,
+      image: image ?? undefined,
     }
 
     setMessages((prev) => [...prev, userMessage])
@@ -140,7 +149,7 @@ function ChatDialog({
       const res = await sendMessage({
         sessionId,
         message: text || "Describe this image.",
-        image: pastedImage ?? undefined,
+        image: image ?? undefined,
         pageContext,
         model: customModel || undefined,
         customBaseUrl: customBaseUrl || undefined,
@@ -150,7 +159,6 @@ function ChatDialog({
         ...prev,
         { role: "assistant", content: res.response },
       ])
-      // Refresh context usage after every response
       await refreshContextUsage()
     } catch (err) {
       setMessages((prev) => [
@@ -164,6 +172,39 @@ function ChatDialog({
       setIsLoading(false)
     }
   }, [input, pastedImage, isLoading, sessionId, pageContext, refreshContextUsage])
+
+  // Handle new initial context arriving — auto-send
+  React.useEffect(() => {
+    if (!isOpen || !initialContext) return
+    if (prevContextRef.current === initialContext) return
+    prevContextRef.current = initialContext
+
+    if (initialContext.type === "image") {
+      // Auto-send the screenshot with a default prompt
+      autoSendPendingRef.current = true
+      setPastedImage(initialContext.data)
+    }
+
+    if (initialContext.type === "text" && initialContext.data) {
+      // Auto-send the highlighted text
+      autoSendPendingRef.current = true
+      setInput(`Explain this:\n\n> ${initialContext.data}`)
+    }
+  }, [isOpen, initialContext])
+
+  // Auto-send when pending flag is set (after state updates settle)
+  React.useEffect(() => {
+    if (!autoSendPendingRef.current) return
+    if (!isOpen) return
+
+    autoSendPendingRef.current = false
+
+    if (initialContext?.type === "image" && pastedImage) {
+      handleSend("Describe this screenshot.", pastedImage)
+    } else if (initialContext?.type === "text" && input.trim()) {
+      handleSend(input, null)
+    }
+  }, [isOpen, input, pastedImage, initialContext, handleSend])
 
   // ------ Paste handler ------
   const handlePaste = React.useCallback(
@@ -222,10 +263,53 @@ function ChatDialog({
     setPastedImage(null)
   }, [])
 
+  // ------ Resize drag handler ------
+  const handleResizeMouseDown = React.useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      const startX = e.clientX
+      const startWidth = panelWidth
+
+      const onMouseMove = (ev: MouseEvent) => {
+        const delta = startX - ev.clientX
+        const newWidth = Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, startWidth + delta))
+        setPanelWidth(newWidth)
+      }
+
+      const onMouseUp = () => {
+        document.removeEventListener("mousemove", onMouseMove)
+        document.removeEventListener("mouseup", onMouseUp)
+        document.body.style.cursor = ""
+        document.body.style.userSelect = ""
+      }
+
+      document.body.style.cursor = "col-resize"
+      document.body.style.userSelect = "none"
+      document.addEventListener("mousemove", onMouseMove)
+      document.addEventListener("mouseup", onMouseUp)
+    },
+    [panelWidth]
+  )
+
+  // ------ Expandable screenshot state ------
+  const [expandedImage, setExpandedImage] = React.useState(false)
+
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l bg-background shadow-xl sm:w-[420px]">
+    <div
+      className="flex h-full shrink-0 flex-col border-l bg-background"
+      style={{ width: panelWidth }}
+    >
+      {/* ---- Resize handle ---- */}
+      <div
+        className="absolute left-0 top-0 bottom-0 z-10 flex w-2 cursor-col-resize items-center justify-center hover:bg-primary/10 active:bg-primary/20"
+        onMouseDown={handleResizeMouseDown}
+        style={{ marginLeft: -4 }}
+      >
+        <GripVertical className="size-3 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+      </div>
+
       {/* ---- Header ---- */}
       <div className="flex items-center justify-between border-b px-4 py-3">
         <div className="flex items-center gap-2">
@@ -289,24 +373,42 @@ function ChatDialog({
         </Button>
       </div>
 
-      {/* ---- Source context indicator ---- */}
+      {/* ---- Source context indicator (redesigned) ---- */}
       {initialContext && (initialContext.data || initialContext.label) && (
-        <div className="border-b px-4 py-2">
-          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-            {initialContext.label ? `From: ${initialContext.label}` : "Context"}
-          </p>
-          {initialContext.type === "text" && initialContext.data && (
-            <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground italic">
-              &ldquo;{initialContext.data}&rdquo;
-            </p>
-          )}
-          {initialContext.type === "image" && (
-            <img
-              src={initialContext.data}
-              alt="Context screenshot"
-              className="mt-1 h-12 rounded border object-cover"
-            />
-          )}
+        <div className="border-b px-4 py-3">
+          <div className="rounded-lg border bg-muted/50 p-3">
+            {initialContext.label && (
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {initialContext.label}
+              </p>
+            )}
+            {initialContext.type === "text" && initialContext.data && (
+              <div className="border-l-2 border-primary pl-3">
+                <p className="line-clamp-4 text-xs leading-relaxed text-foreground/80 italic">
+                  {initialContext.data}
+                </p>
+              </div>
+            )}
+            {initialContext.type === "image" && (
+              <button
+                type="button"
+                onClick={() => setExpandedImage(!expandedImage)}
+                className="mt-1 block cursor-pointer"
+              >
+                <img
+                  src={initialContext.data}
+                  alt="Context screenshot"
+                  className={cn(
+                    "rounded border object-cover transition-all",
+                    expandedImage ? "max-h-64 w-full object-contain" : "h-16"
+                  )}
+                />
+                <span className="mt-1 block text-[10px] text-muted-foreground">
+                  {expandedImage ? "Click to collapse" : "Click to expand"}
+                </span>
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -434,7 +536,6 @@ function ChatDialog({
             />
             <button
               onClick={() => {
-                // Trigger file input for image attachment
                 const fileInput = document.createElement("input")
                 fileInput.type = "file"
                 fileInput.accept = "image/*"
@@ -455,7 +556,7 @@ function ChatDialog({
           </div>
           <Button
             size="icon"
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={isLoading || (!input.trim() && !pastedImage)}
             aria-label="Send message"
           >

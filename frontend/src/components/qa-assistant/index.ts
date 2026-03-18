@@ -1,5 +1,5 @@
 export { QAAssistant } from "./QAAssistant"
-export { Toolbox, type ToolboxProps } from "./Toolbox"
+export { useQATools } from "./QAToolsContext"
 export { ChatDialog, type ChatDialogProps, type InitialContext } from "./ChatDialog"
 export { ScreenshotCapture, type ScreenshotCaptureProps } from "./ScreenshotCapture"
 export { SettingsDialog, type SettingsDialogProps } from "./SettingsDialog"

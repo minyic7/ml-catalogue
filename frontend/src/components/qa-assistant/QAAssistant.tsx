@@ -3,21 +3,20 @@ import { useLocation } from "react-router-dom"
 
 import { MessageCircle } from "lucide-react"
 
-import { Toolbox } from "./Toolbox"
 import { ChatDialog, type InitialContext } from "./ChatDialog"
 import { ScreenshotCapture } from "./ScreenshotCapture"
 import { SettingsDialog } from "./SettingsDialog"
+import { QAToolsContext } from "./QAToolsContext"
 
 /**
  * QAAssistant — parent orchestrator that composes Toolbox, ChatDialog,
  * ScreenshotCapture, and highlight-to-ask logic.  Mounted once in the
  * app shell (RootLayout) so it is available on every page.
  *
- * The Toolbox remains visible even while the chat panel is open so
- * users can capture additional screenshots or highlight more text
- * mid-conversation.
+ * QA tool button handlers and state are exposed via QAToolsContext
+ * so the header bar can render the buttons inline.
  */
-export function QAAssistant() {
+export function QAAssistant({ children }: { children?: React.ReactNode }) {
   const [chatOpen, setChatOpen] = React.useState(false)
   const [settingsOpen, setSettingsOpen] = React.useState(false)
   const [screenshotActive, setScreenshotActive] = React.useState(false)
@@ -168,8 +167,21 @@ export function QAAssistant() {
     setChatOpen(false)
   }, [])
 
+  const ctxValue = React.useMemo(
+    () => ({
+      onScreenshotClick: handleScreenshotClick,
+      onHighlightClick: handleHighlightClick,
+      onAskClick: handleAskClick,
+      onSettingsClick: handleSettingsClick,
+      hasSelection,
+      screenshotActive,
+    }),
+    [handleScreenshotClick, handleHighlightClick, handleAskClick, handleSettingsClick, hasSelection, screenshotActive]
+  )
+
   return (
-    <>
+    <QAToolsContext.Provider value={ctxValue}>
+      {children}
       {/* Selection bubble popup */}
       {selectionPopup && !chatOpen && (
         <button
@@ -190,16 +202,6 @@ export function QAAssistant() {
         </button>
       )}
 
-      {/* Toolbox is always visible except during screenshot capture */}
-      {!screenshotActive && (
-        <Toolbox
-          onScreenshotClick={handleScreenshotClick}
-          onHighlightClick={handleHighlightClick}
-          onAskClick={handleAskClick}
-          onSettingsClick={handleSettingsClick}
-          hasSelection={hasSelection}
-        />
-      )}
       {screenshotActive && (
         <ScreenshotCapture
           onCapture={handleScreenshotCapture}
@@ -213,6 +215,6 @@ export function QAAssistant() {
         pageContext={pageContent}
       />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
-    </>
+    </QAToolsContext.Provider>
   )
 }

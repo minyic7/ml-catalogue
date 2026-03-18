@@ -1,14 +1,28 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Outlet, useOutletContext } from 'react-router-dom';
-import { MenuIcon, SearchIcon } from 'lucide-react';
+import {
+  Camera,
+  MenuIcon,
+  MessageSquare,
+  SearchIcon,
+  Settings,
+  TextSelect,
+} from 'lucide-react';
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import Sidebar from '@/components/Sidebar';
 import SearchDialog from '@/components/SearchDialog';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import ThemeToggle from '@/components/ThemeToggle';
-import { QAAssistant } from '@/components/qa-assistant';
+import { QAAssistant, useQATools } from '@/components/qa-assistant';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 import {
   Sheet,
   SheetContent,
@@ -22,6 +36,79 @@ export interface LayoutContext {
 // eslint-disable-next-line react-refresh/only-export-components
 export function useLayoutContext() {
   return useOutletContext<LayoutContext>();
+}
+
+function QAHeaderButtons() {
+  const { onScreenshotClick, onHighlightClick, onAskClick, onSettingsClick, hasSelection } = useQATools();
+
+  return (
+    <TooltipProvider>
+      <div className="flex items-center gap-1">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onScreenshotClick}
+              aria-label="Capture screen region to ask about"
+            >
+              <Camera className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Screenshot</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className={cn(
+                "relative",
+                hasSelection && "ring-2 ring-primary ring-offset-1 ring-offset-background"
+              )}
+              onClick={onHighlightClick}
+              aria-label="Highlight text and ask about it"
+            >
+              <TextSelect className="size-4" />
+              {hasSelection && (
+                <span className="absolute -top-0.5 -right-0.5 flex size-2">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
+                  <span className="relative inline-flex size-2 rounded-full bg-primary" />
+                </span>
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Highlight</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onAskClick}
+              aria-label="Ask a question about this page"
+            >
+              <MessageSquare className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Ask</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onSettingsClick}
+              aria-label="QA settings"
+            >
+              <Settings className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Settings</TooltipContent>
+        </Tooltip>
+      </div>
+    </TooltipProvider>
+  );
 }
 
 export default function RootLayout() {
@@ -44,6 +131,7 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
+    <QAAssistant>
     <div className="flex h-full min-h-dvh flex-col">
       <header className="flex items-center justify-between border-b px-4 py-3 lg:px-6">
         <div className="flex items-center gap-2">
@@ -61,6 +149,8 @@ export default function RootLayout() {
           </Link>
         </div>
         <div className="flex items-center gap-2">
+          <QAHeaderButtons />
+          <div className="mx-1 h-5 w-px bg-border" />
           <Button
             variant="outline"
             size="sm"
@@ -99,10 +189,8 @@ export default function RootLayout() {
       </div>
 
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
-
-      {/* QA Assistant */}
-      <QAAssistant />
     </div>
+    </QAAssistant>
     </ThemeProvider>
   );
 }

@@ -188,9 +188,23 @@ class TestDangerousCalls:
         violations = check_code_security('re.compile(r"\\d+")')
         assert violations == []
 
-    def test_getattr_blocked(self):
+    def test_getattr_dunder_blocked(self):
         violations = check_code_security('getattr(obj, "__globals__")')
         assert any("getattr()" in v for v in violations)
+
+    def test_getattr_dunder_class_blocked(self):
+        violations = check_code_security('getattr(obj, "__class__")')
+        assert any("getattr()" in v for v in violations)
+
+    def test_getattr_normal_attr_allowed(self):
+        """getattr() with non-dunder attributes should be allowed."""
+        violations = check_code_security('getattr(model, "feature_importances_", None)')
+        assert violations == []
+
+    def test_getattr_dynamic_attr_allowed(self):
+        """getattr() with a variable attribute name should be allowed."""
+        violations = check_code_security("getattr(df, column_name)")
+        assert violations == []
 
 
 # ---------------------------------------------------------------------------

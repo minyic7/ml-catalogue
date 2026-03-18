@@ -54,14 +54,7 @@ sys.modules["ml_catalogue_runtime"] = _runtime
 _CHART_DIR = os.environ.get("_SANDBOX_CHART_DIR", "")
 _CHART_MANIFEST = os.environ.get("_SANDBOX_CHART_MANIFEST", "")
 _captured_charts: list[str] = []
-_chart_counter = 0
 _matplotlib_patched = False
-
-
-def _next_chart_path() -> str:
-    global _chart_counter
-    _chart_counter += 1
-    return os.path.join(_CHART_DIR, f"chart_{_chart_counter}.png")
 
 
 def _patch_matplotlib() -> None:
@@ -78,6 +71,14 @@ def _patch_matplotlib() -> None:
 
     _original_show = _plt.show
     _original_savefig = _plt.savefig
+
+    # Keep chart counter local to this closure so each subprocess
+    # (or potential thread) gets its own independent numbering.
+    _counter = [0]
+
+    def _next_chart_path() -> str:
+        _counter[0] += 1
+        return os.path.join(_CHART_DIR, f"chart_{_counter[0]}.png")
 
     def _patched_show(*args, **kwargs) -> None:  # noqa: ARG001
         fig = _plt.gcf()

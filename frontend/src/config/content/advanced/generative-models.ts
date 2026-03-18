@@ -66,23 +66,22 @@ QUICK = MODE == "quick"
 # Load MNIST data (subset for speed)
 # ============================================================
 def load_mnist_subset(n_train=5000, n_test=500):
-    """Load MNIST from torchvision or generate synthetic data."""
-    try:
-        from torchvision import datasets, transforms
-        transform = transforms.ToTensor()
-        train_ds = datasets.MNIST('/tmp/mnist', train=True, download=True, transform=transform)
-        test_ds = datasets.MNIST('/tmp/mnist', train=False, download=True, transform=transform)
-        x_train = train_ds.data[:n_train].float() / 255.0
-        x_test = test_ds.data[:n_test].float() / 255.0
-        y_train = train_ds.targets[:n_train]
-        y_test = test_ds.targets[:n_test]
-    except Exception:
-        print("Generating synthetic MNIST-like data...")
-        torch.manual_seed(42)
-        x_train = torch.rand(n_train, 28, 28)
-        x_test = torch.rand(n_test, 28, 28)
-        y_train = torch.randint(0, 10, (n_train,))
-        y_test = torch.randint(0, 10, (n_test,))
+    """Generate synthetic MNIST-like data for the sandbox demo."""
+    torch.manual_seed(42)
+    # Create digit-like patterns: each "digit" class gets a distinct template
+    x_train = torch.zeros(n_train, 28, 28)
+    x_test = torch.zeros(n_test, 28, 28)
+    y_train = torch.randint(0, 10, (n_train,))
+    y_test = torch.randint(0, 10, (n_test,))
+    for x_data, y_data in [(x_train, y_train), (x_test, y_test)]:
+        for i in range(len(x_data)):
+            digit = y_data[i].item()
+            # Each digit class gets a unique spatial pattern
+            row_start = (digit % 5) * 4 + 2
+            col_start = (digit // 5) * 10 + 4
+            x_data[i, row_start:row_start+6, col_start:col_start+10] = 0.8
+            x_data[i] += torch.rand(28, 28) * 0.2  # add noise
+            x_data[i].clamp_(0, 1)
     return x_train, y_train, x_test, y_test
 
 n_train = 2000 if QUICK else 10000
@@ -304,15 +303,17 @@ QUICK = MODE == "quick"
 # Load MNIST data (subset)
 # ============================================================
 def load_mnist_subset(n_train=5000):
-    try:
-        from torchvision import datasets, transforms
-        transform = transforms.ToTensor()
-        train_ds = datasets.MNIST('/tmp/mnist', train=True, download=True, transform=transform)
-        x_train = train_ds.data[:n_train].float() / 255.0
-    except Exception:
-        print("Generating synthetic MNIST-like data...")
-        torch.manual_seed(42)
-        x_train = torch.rand(n_train, 28, 28)
+    """Generate synthetic MNIST-like data for the sandbox demo."""
+    torch.manual_seed(42)
+    x_train = torch.zeros(n_train, 28, 28)
+    labels = torch.randint(0, 10, (n_train,))
+    for i in range(n_train):
+        digit = labels[i].item()
+        row_start = (digit % 5) * 4 + 2
+        col_start = (digit // 5) * 10 + 4
+        x_train[i, row_start:row_start+6, col_start:col_start+10] = 0.8
+        x_train[i] += torch.rand(28, 28) * 0.2
+        x_train[i].clamp_(0, 1)
     return x_train
 
 n_train = 3000 if QUICK else 10000

@@ -6,6 +6,7 @@ import { MessageCircle } from "lucide-react"
 import { Toolbox } from "./Toolbox"
 import { ChatDialog, type InitialContext } from "./ChatDialog"
 import { ScreenshotCapture } from "./ScreenshotCapture"
+import { SettingsDialog } from "./SettingsDialog"
 
 /**
  * QAAssistant — parent orchestrator that composes Toolbox, ChatDialog,
@@ -18,6 +19,7 @@ import { ScreenshotCapture } from "./ScreenshotCapture"
  */
 export function QAAssistant() {
   const [chatOpen, setChatOpen] = React.useState(false)
+  const [settingsOpen, setSettingsOpen] = React.useState(false)
   const [screenshotActive, setScreenshotActive] = React.useState(false)
   const [initialContext, setInitialContext] =
     React.useState<InitialContext | null>(null)
@@ -125,6 +127,10 @@ export function QAAssistant() {
   }, [])
 
   // ------- Screenshot button handler -------
+  const handleSettingsClick = React.useCallback(() => {
+    setSettingsOpen(true)
+  }, [])
+
   const handleScreenshotClick = React.useCallback(() => {
     setScreenshotActive(true)
   }, [])
@@ -190,6 +196,7 @@ export function QAAssistant() {
           onScreenshotClick={handleScreenshotClick}
           onHighlightClick={handleHighlightClick}
           onAskClick={handleAskClick}
+          onSettingsClick={handleSettingsClick}
           hasSelection={hasSelection}
         />
       )}
@@ -205,6 +212,7 @@ export function QAAssistant() {
         initialContext={initialContext}
         pageContext={pageContent}
       />
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </>
   )
 }

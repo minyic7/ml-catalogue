@@ -38,6 +38,8 @@ Neural network weight initialization often uses normal or uniform distributions.
 
 Run the code to sample from each distribution and visualize the results.`,
       codeSnippet: `import numpy as np
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 rng = np.random.default_rng(42)
@@ -214,6 +216,8 @@ Hypothesis testing is the backbone of A/B testing, feature selection, and model 
 Run the code to perform a two-sample t-test and chi-squared test, then visualize the test statistic distribution with the rejection region shaded.`,
       codeSnippet: `import numpy as np
 from scipy import stats
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 rng = np.random.default_rng(42)
@@ -328,6 +332,8 @@ A/B testing is one of the most common interview topics and day-to-day tasks for 
 Run the code to simulate an A/B test end-to-end: generate data, run a z-test for proportions, compute the confidence interval, and calculate the required sample size.`,
       codeSnippet: `import numpy as np
 from scipy import stats
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 rng = np.random.default_rng(42)

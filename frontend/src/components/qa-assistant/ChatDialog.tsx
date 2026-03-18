@@ -106,7 +106,7 @@ function ChatDialog({
 
       if (usage.usage_percent >= AUTO_COMPACT_THRESHOLD) {
         setIsCompacting(true)
-        await compactHistory(sessionId)
+        await compactHistory({ sessionId, apiKey: getStoredCustomApiKey() || undefined, model: getStoredCustomModel() || undefined })
         const refreshed = await fetchContextUsage(sessionId)
         setContextUsage(refreshed.usage_percent)
         setIsCompacting(false)
@@ -202,7 +202,7 @@ function ChatDialog({
   const handleCompact = React.useCallback(async () => {
     setIsCompacting(true)
     try {
-      await compactHistory(sessionId)
+      await compactHistory({ sessionId, apiKey: getStoredCustomApiKey() || undefined, model: getStoredCustomModel() || undefined })
       const usage = await fetchContextUsage(sessionId)
       setContextUsage(usage.usage_percent)
     } catch {

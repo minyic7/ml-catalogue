@@ -116,6 +116,12 @@ class ChatResponse(BaseModel):
 
 class CompactRequest(BaseModel):
     session_id: str = Field(min_length=1, max_length=256)
+    api_key: str | None = Field(
+        default=None, description="Optional user-provided Anthropic API key"
+    )
+    model: str | None = Field(
+        default=None, description="Optional model override"
+    )
 
 
 class CompactResponse(BaseModel):
@@ -211,6 +217,9 @@ def _call_anthropic(
     except anthropic.APIError as e:
         raise HTTPException(status_code=502, detail=f"Claude API error: {e.message}")
 
+    if not api_response.content or not hasattr(api_response.content[0], "text"):
+        raise HTTPException(status_code=502, detail="Claude API returned an empty or unexpected response")
+
     return api_response.content[0].text
 
 
@@ -299,7 +308,16 @@ async def chat(request: ChatRequest) -> ChatResponse:
 @router.post("/compact", response_model=CompactResponse)
 async def compact(request: CompactRequest) -> CompactResponse:
     """Summarise and compact the conversation history for a session."""
-    client = _get_client()
+    if request.api_key:
+        client = anthropic.Anthropic(api_key=request.api_key)
+    else:
+        try:
+            client = _get_client()
+        except HTTPException:
+            raise HTTPException(
+                status_code=422,
+                detail="No API key configured. Please open Settings (gear icon) in the QA toolbox and enter your Anthropic API key.",
+            )
 
     if request.session_id not in _sessions:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -325,14 +343,21 @@ async def compact(request: CompactRequest) -> CompactResponse:
         }
     ]
 
+    model = request.model or DEFAULT_MODEL
+
     try:
         api_response = client.messages.create(
-            model=DEFAULT_MODEL,
+            model=model,
             max_tokens=4096,
             messages=summary_messages,
         )
+    except anthropic.AuthenticationError:
+        raise HTTPException(status_code=401, detail="Invalid API key. Please check your Anthropic API key in settings.")
     except anthropic.APIError as e:
         raise HTTPException(status_code=502, detail=f"Claude API error: {e.message}")
+
+    if not api_response.content or not hasattr(api_response.content[0], "text"):
+        raise HTTPException(status_code=502, detail="Claude API returned an empty or unexpected response")
 
     summary_text = api_response.content[0].text
 

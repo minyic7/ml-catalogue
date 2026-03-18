@@ -186,9 +186,9 @@ function ChatDialog({
     }
 
     if (initialContext.type === "text" && initialContext.data) {
-      // Auto-send the highlighted text
+      // Auto-send a clean prompt — the highlighted text is already visible
+      // in the context indicator card and available to the LLM via pageContext
       autoSendPendingRef.current = true
-      setInput(`Explain this:\n\n> ${initialContext.data}`)
     }
   }, [isOpen, initialContext])
 
@@ -201,10 +201,10 @@ function ChatDialog({
 
     if (initialContext?.type === "image" && pastedImage) {
       handleSend("Describe this screenshot.", pastedImage)
-    } else if (initialContext?.type === "text" && input.trim()) {
-      handleSend(input, null)
+    } else if (initialContext?.type === "text" && initialContext.data) {
+      handleSend("Explain the highlighted text.", null)
     }
-  }, [isOpen, input, pastedImage, initialContext, handleSend])
+  }, [isOpen, pastedImage, initialContext, handleSend])
 
   // ------ Paste handler ------
   const handlePaste = React.useCallback(

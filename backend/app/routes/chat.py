@@ -4,6 +4,7 @@ from collections import OrderedDict
 from typing import Any
 
 import anthropic
+import openai
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -21,12 +22,6 @@ _MAX_IMAGE_BYTES = 20 * 1024 * 1024  # 20 MB max base64 image size
 _sessions: OrderedDict[str, dict[str, Any]] = OrderedDict()
 
 DEFAULT_MODEL = "claude-sonnet-4-20250514"
-ALLOWED_MODELS = {
-    DEFAULT_MODEL,
-    "claude-opus-4-6",
-    "claude-sonnet-4-6",
-    "claude-haiku-4-5-20251001",
-}
 MAX_CONTEXT_TOKENS = 200_000  # Claude Sonnet context window
 
 # ---------------------------------------------------------------------------
@@ -87,7 +82,6 @@ def _estimate_tokens(messages: list[dict], system: str | None = None) -> int:
                     if block.get("type") == "text":
                         total_chars += len(block.get("text", ""))
                     elif block.get("type") == "image":
-                        # Base64 images use ~1 token per 750 pixels; estimate 1000 tokens
                         total_chars += 4000
     return total_chars // 4
 
@@ -103,11 +97,15 @@ class ChatRequest(BaseModel):
     page_context: str | None = Field(
         default=None, description="Optional current page content for context"
     )
-    api_key: str | None = Field(
-        default=None, description="Optional user-provided Anthropic API key"
-    )
     model: str | None = Field(
         default=None, description="Optional model override"
+    )
+    # OpenAI-compatible endpoint settings (from user's browser localStorage)
+    custom_base_url: str | None = Field(
+        default=None, description="OpenAI-compatible API base URL"
+    )
+    custom_api_key: str | None = Field(
+        default=None, description="API key for the custom endpoint"
     )
 
 
@@ -135,30 +133,95 @@ class ContextUsageResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# OpenAI-compatible call
+# ---------------------------------------------------------------------------
+
+def _call_openai_compatible(
+    base_url: str,
+    api_key: str,
+    model: str,
+    messages: list[dict],
+    system: str | None,
+) -> str:
+    """Call an OpenAI-compatible endpoint and return the assistant text."""
+    client = openai.OpenAI(base_url=base_url, api_key=api_key)
+
+    # Convert Anthropic-style messages to OpenAI format
+    oai_messages: list[dict[str, Any]] = []
+    if system:
+        oai_messages.append({"role": "system", "content": system})
+
+    for msg in messages:
+        content = msg.get("content", "")
+        if isinstance(content, str):
+            oai_messages.append({"role": msg["role"], "content": content})
+        elif isinstance(content, list):
+            # Convert Anthropic content blocks to OpenAI multi-part format
+            parts: list[dict[str, Any]] = []
+            for block in content:
+                if isinstance(block, dict):
+                    if block.get("type") == "text":
+                        parts.append({"type": "text", "text": block["text"]})
+                    elif block.get("type") == "image":
+                        source = block.get("source", {})
+                        media_type = source.get("media_type", "image/png")
+                        data = source.get("data", "")
+                        parts.append({
+                            "type": "image_url",
+                            "image_url": {"url": f"data:{media_type};base64,{data}"},
+                        })
+            oai_messages.append({"role": msg["role"], "content": parts if parts else ""})
+
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=oai_messages,
+            max_tokens=4096,
+        )
+    except openai.AuthenticationError:
+        raise HTTPException(status_code=401, detail="Invalid API key for custom endpoint.")
+    except openai.APIError as e:
+        raise HTTPException(status_code=502, detail=f"Custom endpoint error: {e.message}")
+
+    choice = response.choices[0]
+    return choice.message.content or ""
+
+
+# ---------------------------------------------------------------------------
+# Anthropic call
+# ---------------------------------------------------------------------------
+
+def _call_anthropic(
+    model: str,
+    messages: list[dict],
+    system: str | None,
+) -> str:
+    """Call Anthropic API using server-side key and return the assistant text."""
+    client = _get_client()
+
+    try:
+        api_response = client.messages.create(
+            model=model,
+            max_tokens=4096,
+            system=system or anthropic.NOT_GIVEN,
+            messages=messages,
+        )
+    except anthropic.AuthenticationError:
+        raise HTTPException(status_code=401, detail="Server Anthropic API key is invalid.")
+    except anthropic.APIError as e:
+        raise HTTPException(status_code=502, detail=f"Claude API error: {e.message}")
+
+    return api_response.content[0].text
+
+
+# ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
 @router.post("", response_model=ChatResponse)
 async def chat(request: ChatRequest) -> ChatResponse:
-    """Send a message to Claude and get a response, with per-session history."""
-    # Use user-provided API key if supplied, otherwise fall back to server key
-    if request.api_key:
-        client = anthropic.Anthropic(api_key=request.api_key)
-    else:
-        try:
-            client = _get_client()
-        except HTTPException:
-            raise HTTPException(
-                status_code=422,
-                detail="No API key configured. Please open Settings (gear icon) in the QA toolbox and enter your Anthropic API key.",
-            )
-
-    model = request.model or DEFAULT_MODEL
-    if model not in ALLOWED_MODELS:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Model '{model}' is not allowed. Allowed models: {', '.join(sorted(ALLOWED_MODELS))}",
-        )
+    """Send a message and get a response. Uses custom OpenAI-compatible endpoint
+    if provided, otherwise falls back to server-side Anthropic API key."""
     session = _get_or_create_session(request.session_id)
 
     # Build user message content
@@ -170,11 +233,9 @@ async def chat(request: ChatRequest) -> ChatResponse:
                 status_code=413,
                 detail=f"Image exceeds maximum size of {_MAX_IMAGE_BYTES // (1024 * 1024)} MB",
             )
-        # Detect media type from base64 header or default to png
         media_type = "image/png"
         image_data = request.image
         if request.image.startswith("data:"):
-            # Strip data URI prefix: "data:image/jpeg;base64,..."
             header, image_data = request.image.split(",", 1)
             if "image/jpeg" in header or "image/jpg" in header:
                 media_type = "image/jpeg"
@@ -206,23 +267,28 @@ async def chat(request: ChatRequest) -> ChatResponse:
             f"{request.page_context}"
         )
 
-    # Call Claude API
-    try:
-        api_response = client.messages.create(
-            model=model,
-            max_tokens=4096,
-            system=system or anthropic.NOT_GIVEN,
-            messages=session["messages"],
-        )
-    except anthropic.AuthenticationError:
-        session["messages"].pop()
-        raise HTTPException(status_code=401, detail="Invalid API key. Please check your Anthropic API key in settings.")
-    except anthropic.APIError as e:
-        # Remove the failed user message from history
-        session["messages"].pop()
-        raise HTTPException(status_code=502, detail=f"Claude API error: {e.message}")
+    model = request.model or DEFAULT_MODEL
 
-    assistant_text = api_response.content[0].text
+    try:
+        if request.custom_base_url and request.custom_api_key:
+            # Use user-provided OpenAI-compatible endpoint
+            assistant_text = _call_openai_compatible(
+                base_url=request.custom_base_url,
+                api_key=request.custom_api_key,
+                model=model,
+                messages=session["messages"],
+                system=system,
+            )
+        else:
+            # Fallback to server-side Anthropic key
+            assistant_text = _call_anthropic(
+                model=model,
+                messages=session["messages"],
+                system=system,
+            )
+    except HTTPException:
+        session["messages"].pop()
+        raise
 
     # Add assistant response to history
     session["messages"].append({"role": "assistant", "content": assistant_text})
@@ -248,7 +314,6 @@ async def compact(request: CompactRequest) -> CompactResponse:
             compacted_messages=0,
         )
 
-    # Ask Claude to summarise the conversation
     summary_messages = session["messages"] + [
         {
             "role": "user",
@@ -271,7 +336,6 @@ async def compact(request: CompactRequest) -> CompactResponse:
 
     summary_text = api_response.content[0].text
 
-    # Replace history with compact summary
     session["messages"] = [
         {
             "role": "user",

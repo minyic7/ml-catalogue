@@ -20,7 +20,7 @@ import {
   getSessionId,
   resetSessionId,
 } from "@/api/chat"
-import { getStoredApiKey, getStoredModel } from "./SettingsDialog"
+import { getStoredCustomBaseUrl, getStoredCustomApiKey, getStoredCustomModel } from "./SettingsDialog"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -134,15 +134,17 @@ function ChatDialog({
     setIsLoading(true)
 
     try {
-      const apiKey = getStoredApiKey()
-      const model = getStoredModel()
+      const customBaseUrl = getStoredCustomBaseUrl()
+      const customApiKey = getStoredCustomApiKey()
+      const customModel = getStoredCustomModel()
       const res = await sendMessage({
         sessionId,
         message: text || "Describe this image.",
         image: pastedImage ?? undefined,
         pageContext,
-        apiKey: apiKey || undefined,
-        model: model || undefined,
+        model: customModel || undefined,
+        customBaseUrl: customBaseUrl || undefined,
+        customApiKey: customApiKey || undefined,
       })
       setMessages((prev) => [
         ...prev,

@@ -45,8 +45,9 @@ export async function sendMessage(params: {
   message: string
   image?: string
   pageContext?: string
-  apiKey?: string
   model?: string
+  customBaseUrl?: string
+  customApiKey?: string
   signal?: AbortSignal
 }): Promise<ChatResponse> {
   const { signal, ...rest } = params
@@ -58,8 +59,9 @@ export async function sendMessage(params: {
       message: rest.message,
       image: rest.image || undefined,
       page_context: rest.pageContext || undefined,
-      api_key: rest.apiKey || undefined,
       model: rest.model || undefined,
+      custom_base_url: rest.customBaseUrl || undefined,
+      custom_api_key: rest.customApiKey || undefined,
     }),
     signal,
   })

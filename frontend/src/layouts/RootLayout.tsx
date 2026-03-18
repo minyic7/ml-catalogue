@@ -181,7 +181,7 @@ export default function RootLayout() {
           </SheetContent>
         </Sheet>
 
-        <main className="flex-1 overflow-y-scroll p-4 lg:p-6" style={{ scrollbarGutter: "stable" }}>
+        <main className="flex-1 overflow-y-scroll overscroll-y-none p-4 lg:p-6" style={{ scrollbarGutter: "stable" }}>
           <ErrorBoundary>
             <Outlet context={{ openSearch: () => setSearchOpen(true) }} />
           </ErrorBoundary>

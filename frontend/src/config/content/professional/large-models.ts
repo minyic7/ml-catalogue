@@ -51,26 +51,28 @@ The number of trainable parameters drops from $d \\times k$ to $r \\times (d + k
 Run the code below to see LoRA's low-rank decomposition in action and compare parameter counts.`,
       codeSnippet: `import numpy as np
 
-# Simulate a pre-trained weight matrix
-d, k = 4096, 4096
-W = np.random.randn(d, k) * 0.02  # frozen pre-trained weights
+# Simulate a pre-trained weight matrix (scaled down for sandbox)
+d, k = 1024, 1024
+W = np.random.randn(d, k).astype(np.float32) * 0.02  # frozen pre-trained weights
 
 # LoRA: low-rank decomposition with rank r
 r = 8
-B = np.random.randn(d, r) * 0.01  # trainable
-A = np.random.randn(r, k) * 0.01  # trainable
+B = np.random.randn(d, r).astype(np.float32) * 0.01  # trainable
+A = np.random.randn(r, k).astype(np.float32) * 0.01  # trainable
 
 # The adapted weight: W' = W + B @ A
 delta_W = B @ A
 W_prime = W + delta_W
 
-# Parameter comparison
-full_params = d * k
-lora_params = r * (d + k)
+# Parameter comparison (show real-world 4096x4096 numbers)
+d_real, k_real = 4096, 4096
+full_params = d_real * k_real
+lora_params = r * (d_real + k_real)
 ratio = full_params / lora_params
 
 print("=== LoRA Parameter Efficiency ===")
-print(f"Weight matrix shape: ({d}, {k})")
+print(f"Real-world weight matrix: ({d_real}, {k_real})")
+print(f"Demo weight matrix:       ({d}, {k})")
 print(f"LoRA rank: {r}")
 print(f"Full fine-tuning params:  {full_params:>12,}")
 print(f"LoRA trainable params:   {lora_params:>12,}")
@@ -84,11 +86,11 @@ print(f"Frobenius norm of W:        {np.linalg.norm(W):.2f}")
 print(f"Frobenius norm of delta_W:  {np.linalg.norm(delta_W):.2f}")
 print()
 
-# Show scaling across different ranks
-print("=== Savings by Rank ===")
+# Show scaling across different ranks (real-world 4096x4096)
+print("=== Savings by Rank (4096x4096 layer) ===")
 print(f"{'Rank':>6} {'LoRA Params':>14} {'Reduction':>10}")
 for rank in [1, 4, 8, 16, 64]:
-    lp = rank * (d + k)
+    lp = rank * (d_real + k_real)
     print(f"{rank:>6} {lp:>14,} {full_params / lp:>9.0f}x")`,
       codeLanguage: "python",
     },

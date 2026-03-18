@@ -194,12 +194,16 @@ class _SecurityVisitor(ast.NodeVisitor):
                 f"allowed in the sandbox (line {node.lineno})"
             )
 
-        # getattr() — can be used to dynamically access blocked attributes
+        # getattr() — block only when accessing dunder attributes (sandbox escape risk)
         if isinstance(func, ast.Name) and func.id == "getattr":
-            self.violations.append(
-                f"Blocked call: 'getattr()' is not allowed in the sandbox "
-                f"(line {node.lineno})"
-            )
+            if len(node.args) >= 2 and isinstance(node.args[1], ast.Constant):
+                attr_name = node.args[1].value
+                if isinstance(attr_name, str) and attr_name.startswith("__"):
+                    self.violations.append(
+                        f"Blocked call: 'getattr()' with dunder attribute "
+                        f"'{attr_name}' is not allowed in the sandbox "
+                        f"(line {node.lineno})"
+                    )
 
         # open() / io.open() with write mode
         if isinstance(func, ast.Name) and func.id == "open":

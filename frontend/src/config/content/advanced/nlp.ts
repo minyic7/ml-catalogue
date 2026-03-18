@@ -156,7 +156,7 @@ for i, doc in enumerate(documents):
     row = tfidf_matrix[i]
     top_indices = row.argsort()[-3:][::-1]
     top_terms = [(vocab[j], round(row[j], 3)) for j in top_indices]
-    print(f"Doc {i+1}: \\"{doc}\\"")
+    print(f'Doc {i+1}: "{doc}"')
     print(f"  Top TF-IDF terms: {top_terms}\\n")
 
 # --- Document Similarity ---

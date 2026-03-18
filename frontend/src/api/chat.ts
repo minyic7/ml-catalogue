@@ -84,13 +84,19 @@ export async function fetchContextUsage(
   return response.json()
 }
 
-export async function compactHistory(
+export async function compactHistory(params: {
   sessionId: string
-): Promise<CompactResponse> {
+  apiKey?: string
+  model?: string
+}): Promise<CompactResponse> {
   const response = await fetch(`${import.meta.env.BASE_URL}api/chat/compact`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ session_id: sessionId }),
+    body: JSON.stringify({
+      session_id: params.sessionId,
+      api_key: params.apiKey || undefined,
+      model: params.model || undefined,
+    }),
   })
 
   if (!response.ok) {

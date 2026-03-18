@@ -601,22 +601,24 @@ GRUs have fewer parameters than LSTMs and often perform comparably on many tasks
 RNNs and LSTMs are foundational for understanding sequential modelling. While transformers have largely replaced them for NLP tasks, LSTMs remain widely used for time series forecasting, speech processing, and real-time sequential data where their incremental hidden state is advantageous.
 
 Run the code to build an LSTM that learns a sine wave pattern and predicts future values.`,
-      codeSnippet: `from ml_catalogue_runtime import DEVICE
+      codeSnippet: `from ml_catalogue_runtime import DEVICE, MODE
 import numpy as np
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 
 device = torch.device(DEVICE)
+QUICK = MODE == "quick"
 
 # Generate sine wave data
 np.random.seed(42)
-t = np.linspace(0, 20 * np.pi, 2000)
+n_points = 500 if QUICK else 2000
+t = np.linspace(0, 10 * np.pi, n_points)
 data = np.sin(t) + 0.1 * np.random.randn(len(t))
 data = data.astype(np.float32)
 
 # Create sequences: use seq_len points to predict the next one
-seq_len = 50
+seq_len = 30
 X, y = [], []
 for i in range(len(data) - seq_len):
     X.append(data[i:i + seq_len])
@@ -630,7 +632,7 @@ y_train, y_test = y[:split], y[split:]
 
 # LSTM model
 class LSTMPredictor(nn.Module):
-    def __init__(self, input_size=1, hidden_size=64, num_layers=2):
+    def __init__(self, input_size=1, hidden_size=32, num_layers=1):
         super().__init__()
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_size, 1)
@@ -641,19 +643,20 @@ class LSTMPredictor(nn.Module):
         return self.fc(last_hidden)
 
 model = LSTMPredictor().to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
 criterion = nn.MSELoss()
 
 print("=== LSTM Sequence Predictor ===")
-print(f"Architecture: LSTM(input=1, hidden=64, layers=2) → Dense(64→1)")
+print(f"Architecture: LSTM(input=1, hidden=32, layers=1) → Dense(32→1)")
 total_params = sum(p.numel() for p in model.parameters())
 print(f"Total parameters: {total_params:,}")
 print(f"Training samples: {len(X_train)}, Test samples: {len(X_test)}\\n")
 
 # Train
 print("=== Training ===")
+n_epochs = 30 if QUICK else 50
 batch_size = 128
-for epoch in range(50):
+for epoch in range(n_epochs):
     model.train()
     total_loss = 0
     for i in range(0, len(X_train), batch_size):
@@ -665,7 +668,7 @@ for epoch in range(50):
         loss.backward()
         optimizer.step()
         total_loss += loss.item() * xb.size(0)
-    if (epoch + 1) % 10 == 0:
+    if (epoch + 1) % (10 if not QUICK else 10) == 0:
         avg_loss = total_loss / len(X_train)
         model.eval()
         with torch.no_grad():
@@ -691,7 +694,7 @@ axes[0].legend()
 axes[0].grid(alpha=0.3)
 
 # Zoomed-in view
-zoom = 100
+zoom = min(100, len(actual_test))
 axes[1].plot(range(zoom), actual_test[:zoom], "o-", label="Actual", color="steelblue", markersize=3)
 axes[1].plot(range(zoom), pred_test[:zoom], "s-", label="Predicted", color="coral", markersize=3, alpha=0.8)
 axes[1].set_title(f"Zoomed View (First {zoom} Steps)")

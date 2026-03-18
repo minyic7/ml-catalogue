@@ -38,8 +38,8 @@ from app.executor.security import check_code_security
 
 _PREAMBLE_PATH = Path(__file__).with_name("preamble.py")
 
-# Default memory limit: 512 MB
-_DEFAULT_MEMORY_LIMIT = 512 * 1024 * 1024
+# Default memory limit: 4 GB (torch needs ~2 GB virtual address space to load)
+_DEFAULT_MEMORY_LIMIT = 4096 * 1024 * 1024
 
 # Hard kill grace period beyond the normal timeout (seconds)
 _HARD_KILL_GRACE = 5

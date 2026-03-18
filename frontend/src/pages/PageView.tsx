@@ -212,7 +212,7 @@ export default function PageView() {
                 showDeviceToggle={page.isDeepLearning}
               />
               <div ref={outputRef}>
-                <OutputArea output={output} />
+                <OutputArea output={output} isLoading={isLoading} />
               </div>
               {executionTime !== null && (
                 <p className="text-xs text-muted-foreground">

@@ -1,5 +1,6 @@
 """Tests for the /api/chat endpoints."""
 
+import asyncio
 import time
 from unittest.mock import MagicMock, patch
 
@@ -12,9 +13,10 @@ from app.routes import chat as chat_module
 
 @pytest.fixture(autouse=True)
 def _clear_sessions():
-    """Reset session store and cached client between tests."""
+    """Reset session store, lock, and cached client between tests."""
     chat_module._sessions.clear()
     chat_module._client = None
+    chat_module._sessions_lock = asyncio.Lock()
     yield
     chat_module._sessions.clear()
     chat_module._client = None
@@ -127,6 +129,15 @@ class TestChat:
     def test_empty_session_id(self, client):
         resp = client.post("/api/chat", json={"session_id": "", "message": "hi"})
         assert resp.status_code == 422
+
+    def test_malformed_image_data_uri(self, client):
+        resp = client.post("/api/chat", json={
+            "session_id": "s-bad-img",
+            "message": "look at this",
+            "image": "data:image/png;base64",  # no comma
+        })
+        assert resp.status_code == 422
+        assert "Malformed image data URI" in resp.json()["detail"]
 
     @patch.object(chat_module, "_get_client")
     def test_image_too_large(self, mock_get_client, client):
@@ -280,7 +291,7 @@ class TestSessionManagement:
             "last_active": time.time() - chat_module._SESSION_TTL - 1,
         }
         # Create a fresh session to trigger eviction
-        chat_module._get_or_create_session("new")
+        asyncio.run(chat_module._get_or_create_session("new"))
 
         assert "old" not in chat_module._sessions
         assert "new" in chat_module._sessions
@@ -290,12 +301,12 @@ class TestSessionManagement:
         chat_module._MAX_SESSIONS = 3
         try:
             for i in range(3):
-                chat_module._get_or_create_session(f"s{i}")
+                asyncio.run(chat_module._get_or_create_session(f"s{i}"))
             # All 3 should exist
             assert len(chat_module._sessions) == 3
 
             # Adding one more should evict the oldest (s0)
-            chat_module._get_or_create_session("s3")
+            asyncio.run(chat_module._get_or_create_session("s3"))
             assert len(chat_module._sessions) == 3
             assert "s0" not in chat_module._sessions
             assert "s3" in chat_module._sessions
@@ -303,12 +314,12 @@ class TestSessionManagement:
             chat_module._MAX_SESSIONS = original_max
 
     def test_accessing_session_moves_to_end(self, client):
-        chat_module._get_or_create_session("a")
-        chat_module._get_or_create_session("b")
-        chat_module._get_or_create_session("c")
+        asyncio.run(chat_module._get_or_create_session("a"))
+        asyncio.run(chat_module._get_or_create_session("b"))
+        asyncio.run(chat_module._get_or_create_session("c"))
 
         # Access "a" to move it to the end
-        chat_module._get_or_create_session("a")
+        asyncio.run(chat_module._get_or_create_session("a"))
 
         keys = list(chat_module._sessions.keys())
         assert keys[-1] == "a"

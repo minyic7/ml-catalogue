@@ -329,7 +329,7 @@ $$\\hat{y} = \\begin{cases} \\text{fraud} & \\text{if } P(\\text{fraud} | X) \\g
 
 Lowering $\\tau$ catches more fraud (higher recall) but increases false positives (lower precision). The optimal $\\tau$ depends on the cost ratio of missed fraud vs. false alerts.
 
-Run the code to build a fraud detection pipeline on synthetic transaction data: feature engineering, XGBoost model training, and threshold tuning with precision-recall analysis.
+Run the code to build a fraud detection pipeline on synthetic transaction data: feature engineering, Gradient Boosting model training, and threshold tuning with precision-recall analysis.
 `;
 
 const fraudDetectionCode = `from ml_catalogue_runtime import MODE
@@ -338,7 +338,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (precision_recall_curve, average_precision_score,
                              roc_auc_score, classification_report)
-from xgboost import XGBClassifier
+from sklearn.ensemble import GradientBoostingClassifier
 
 np.random.seed(42)
 
@@ -425,22 +425,18 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.3, random_state=42, stratify=y
 )
 
-# === XGBoost Model ===
-print("\\n-- Training XGBoost --")
-scale_pos = (y_train == 0).sum() / max((y_train == 1).sum(), 1)
+# === Gradient Boosting Model ===
+print("\\n-- Training Gradient Boosting --")
 n_estimators = 200 if MODE == "full" else 80
 
-model = XGBClassifier(
+model = GradientBoostingClassifier(
     n_estimators=n_estimators,
     max_depth=5,
     learning_rate=0.1,
-    scale_pos_weight=scale_pos,
     random_state=42,
-    eval_metric="aucpr",
-    verbosity=0,
 )
 model.fit(X_train, y_train)
-print(f"  Trained with {n_estimators} trees, scale_pos_weight={scale_pos:.1f}")
+print(f"  Trained with {n_estimators} trees")
 
 y_prob = model.predict_proba(X_test)[:, 1]
 auc_roc = roc_auc_score(y_test, y_prob)

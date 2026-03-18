@@ -1,3 +1,4 @@
+import asyncio
 import os
 import time
 from collections import OrderedDict
@@ -20,6 +21,7 @@ _MAX_IMAGE_BYTES = 20 * 1024 * 1024  # 20 MB max base64 image size
 # OrderedDict for LRU eviction — most recently used sessions move to the end
 # Each entry: {"messages": list[dict], "last_active": float}
 _sessions: OrderedDict[str, dict[str, Any]] = OrderedDict()
+_sessions_lock = asyncio.Lock()
 
 DEFAULT_MODEL = "claude-sonnet-4-20250514"
 MAX_CONTEXT_TOKENS = 200_000  # Claude Sonnet context window
@@ -52,19 +54,20 @@ def _evict_expired() -> None:
         del _sessions[sid]
 
 
-def _get_or_create_session(session_id: str) -> dict[str, Any]:
-    _evict_expired()
-    if session_id in _sessions:
-        # Move to end (most recently used)
-        _sessions.move_to_end(session_id)
-    else:
-        # Evict oldest sessions if at capacity
-        while len(_sessions) >= _MAX_SESSIONS:
-            _sessions.popitem(last=False)
-        _sessions[session_id] = {"messages": [], "last_active": time.time()}
-    session = _sessions[session_id]
-    session["last_active"] = time.time()
-    return session
+async def _get_or_create_session(session_id: str) -> dict[str, Any]:
+    async with _sessions_lock:
+        _evict_expired()
+        if session_id in _sessions:
+            # Move to end (most recently used)
+            _sessions.move_to_end(session_id)
+        else:
+            # Evict oldest sessions if at capacity
+            while len(_sessions) >= _MAX_SESSIONS:
+                _sessions.popitem(last=False)
+            _sessions[session_id] = {"messages": [], "last_active": time.time()}
+        session = _sessions[session_id]
+        session["last_active"] = time.time()
+        return session
 
 
 def _estimate_tokens(messages: list[dict], system: str | None = None) -> int:
@@ -222,7 +225,7 @@ def _call_anthropic(
 async def chat(request: ChatRequest) -> ChatResponse:
     """Send a message and get a response. Uses custom OpenAI-compatible endpoint
     if provided, otherwise falls back to server-side Anthropic API key."""
-    session = _get_or_create_session(request.session_id)
+    session = await _get_or_create_session(request.session_id)
 
     # Build user message content
     content: list[dict[str, Any]] = []
@@ -236,7 +239,10 @@ async def chat(request: ChatRequest) -> ChatResponse:
         media_type = "image/png"
         image_data = request.image
         if request.image.startswith("data:"):
-            header, image_data = request.image.split(",", 1)
+            try:
+                header, image_data = request.image.split(",", 1)
+            except ValueError:
+                raise HTTPException(status_code=422, detail="Malformed image data URI")
             if "image/jpeg" in header or "image/jpg" in header:
                 media_type = "image/jpeg"
             elif "image/gif" in header:
@@ -304,7 +310,7 @@ async def compact(request: CompactRequest) -> CompactResponse:
     if request.session_id not in _sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    session = _get_or_create_session(request.session_id)
+    session = await _get_or_create_session(request.session_id)
     original_count = len(session["messages"])
 
     if original_count == 0:
@@ -363,7 +369,7 @@ async def context_usage(session_id: str) -> ContextUsageResponse:
     if session_id not in _sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    session = _get_or_create_session(session_id)
+    session = await _get_or_create_session(session_id)
     estimated = _estimate_tokens(session["messages"])
     usage_pct = round((estimated / MAX_CONTEXT_TOKENS) * 100, 2)
 

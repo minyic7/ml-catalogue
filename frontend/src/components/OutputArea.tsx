@@ -21,7 +21,7 @@ export function OutputArea({ output }: OutputAreaProps) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="max-h-[500px] overflow-y-auto space-y-3">
       {output.stdout && (
         <pre
           className={cn(

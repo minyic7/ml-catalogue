@@ -31,6 +31,7 @@ export default function PageView() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const modeRef = useRef<RunMode>("quick");
+  const outputRef = useRef<HTMLDivElement | null>(null);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -46,6 +47,13 @@ export default function PageView() {
       abortControllerRef.current?.abort();
     };
   }, [clearTimer]);
+
+  // Scroll output into view when it changes
+  useEffect(() => {
+    if (output) {
+      outputRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [output]);
 
   const level = CONTENT_STRUCTURE.find((l) => l.slug === levelSlug);
   const chapter = level?.chapters.find((c) => c.slug === chapterSlug);
@@ -185,7 +193,7 @@ export default function PageView() {
       </div>
 
       {hasContent ? (
-        <div className="space-y-6">
+        <div className="space-y-6 min-h-0">
           {page.markdownContent && (
             <MarkdownRenderer content={page.markdownContent} />
           )}
@@ -203,7 +211,9 @@ export default function PageView() {
                 timeoutWarning={timeoutWarning}
                 showDeviceToggle={page.isDeepLearning}
               />
-              <OutputArea output={output} />
+              <div ref={outputRef}>
+                <OutputArea output={output} />
+              </div>
               {executionTime !== null && (
                 <p className="text-xs text-muted-foreground">
                   Completed in {(executionTime / 1000).toFixed(1)}s

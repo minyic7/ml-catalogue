@@ -194,14 +194,14 @@ Below we build a small CNN with two convolutional layers and train it on synthet
 - **FC**: Flatten → 64 units → ReLU → 4 classes
 
 Run the code to train the CNN and watch the loss decrease over epochs.`,
-      codeSnippet: `import os
+      codeSnippet: `from ml_catalogue_runtime import DEVICE
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
 
-device = torch.device(os.environ.get("ML_CATALOGUE_DEVICE", "cpu"))
+device = torch.device(DEVICE)
 print(f"Using device: {device}")
 torch.manual_seed(42); np.random.seed(42)
 

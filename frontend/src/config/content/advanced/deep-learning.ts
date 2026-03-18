@@ -47,13 +47,13 @@ The choice of activation function shapes how a network learns:
 Neural networks are the foundation of deep learning. Understanding how data flows through layers, how weights transform inputs, and how activations introduce nonlinearity is essential before tackling more advanced architectures.
 
 Run the code to train a 2-layer neural network on spiral data and watch the training loss decrease.`,
-      codeSnippet: `import os
+      codeSnippet: `from ml_catalogue_runtime import DEVICE
 import numpy as np
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 
-device = torch.device(os.environ.get("ML_CATALOGUE_DEVICE", "cpu"))
+device = torch.device(DEVICE)
 
 # Generate spiral dataset (2 classes)
 np.random.seed(42)
@@ -202,12 +202,12 @@ When many sigmoid or tanh layers are stacked, the gradients at each layer are mu
 Every deep learning training loop relies on backpropagation. Understanding how gradients flow through a network — and how activation function choice shapes that flow — helps you debug training issues, choose architectures, and reason about why certain designs work better than others.
 
 Run the code to compute backpropagation manually on a tiny network, verify the results against PyTorch autograd, and visualise how different activation functions and their derivatives affect gradient flow.`,
-      codeSnippet: `import os
+      codeSnippet: `from ml_catalogue_runtime import DEVICE
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
-device = torch.device(os.environ.get("ML_CATALOGUE_DEVICE", "cpu"))
+device = torch.device(DEVICE)
 
 # --- Manual Backpropagation on a Tiny Network ---
 # Network: input x -> z1 = w1*x + b1 -> a1 = relu(z1)
@@ -394,7 +394,7 @@ Each convolutional block extracts features at increasing levels of abstraction. 
 CNNs are the backbone of modern computer vision — from image classification and object detection to medical imaging and autonomous driving. Understanding convolutions, pooling, and feature hierarchies is essential for working with any visual data.
 
 Run the code to build and train a CNN on handwritten digit data and inspect the learned feature maps.`,
-      codeSnippet: `import os
+      codeSnippet: `from ml_catalogue_runtime import DEVICE
 import numpy as np
 import torch
 import torch.nn as nn
@@ -402,7 +402,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 import matplotlib.pyplot as plt
 
-device = torch.device(os.environ.get("ML_CATALOGUE_DEVICE", "cpu"))
+device = torch.device(DEVICE)
 
 # Generate synthetic digit-like data (8x8 images, 4 classes)
 np.random.seed(42)
@@ -601,13 +601,13 @@ GRUs have fewer parameters than LSTMs and often perform comparably on many tasks
 RNNs and LSTMs are foundational for understanding sequential modelling. While transformers have largely replaced them for NLP tasks, LSTMs remain widely used for time series forecasting, speech processing, and real-time sequential data where their incremental hidden state is advantageous.
 
 Run the code to build an LSTM that learns a sine wave pattern and predicts future values.`,
-      codeSnippet: `import os
+      codeSnippet: `from ml_catalogue_runtime import DEVICE
 import numpy as np
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 
-device = torch.device(os.environ.get("ML_CATALOGUE_DEVICE", "cpu"))
+device = torch.device(DEVICE)
 
 # Generate sine wave data
 np.random.seed(42)

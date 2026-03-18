@@ -58,13 +58,13 @@ This converges to $V^*$ as $k \\to \\infty$. Once we have $V^*$, we extract the 
 MDPs and Bellman equations are the theoretical backbone of all RL algorithms. Run the code to see value iteration solve a grid world — watch the value function converge and the optimal policy emerge.
 `;
 
-const mdpBellmanCode = `import numpy as np
+const mdpBellmanCode = `from ml_catalogue_runtime import MODE
+import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import os
 
-QUICK = os.environ.get("DATASET_MODE", "quick") == "quick"
+QUICK = MODE == "quick"
 
 # ============================================================
 # Grid World Environment
@@ -270,13 +270,13 @@ In practice, a fixed small $\\alpha$ works well for finite environments.
 Q-learning is the foundation of modern RL algorithms. Its model-free, off-policy nature makes it practical for environments where transition dynamics are unknown. Run the code to see Q-learning solve a grid world with obstacles — watch the Q-values converge and the agent discover the optimal path.
 `;
 
-const qLearningCode = `import numpy as np
+const qLearningCode = `from ml_catalogue_runtime import MODE
+import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import os
 
-QUICK = os.environ.get("DATASET_MODE", "quick") == "quick"
+QUICK = MODE == "quick"
 
 # ============================================================
 # Grid World for Q-Learning
@@ -528,13 +528,13 @@ The baseline does not introduce bias (as long as it doesn't depend on $a_t$) but
 Policy gradient methods are the basis for modern RL algorithms like PPO, A3C, and SAC. Run the code to see REINFORCE learn to balance a simple CartPole-like environment — watch the training curve as the agent improves.
 `;
 
-const policyGradientCode = `import numpy as np
+const policyGradientCode = `from ml_catalogue_runtime import MODE
+import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import os
 
-QUICK = os.environ.get("DATASET_MODE", "quick") == "quick"
+QUICK = MODE == "quick"
 
 # ============================================================
 # Simple CartPole Environment (no gym dependency)
@@ -776,7 +776,7 @@ Several improvements have been proposed:
 DQN was the breakthrough that demonstrated deep RL could learn complex behaviours directly from high-dimensional inputs. Run the code to see a DQN agent learn to balance a CartPole — compare the training stability and sample efficiency with REINFORCE.
 `;
 
-const deepRLCode = `import os
+const deepRLCode = `from ml_catalogue_runtime import MODE, DEVICE
 import numpy as np
 import torch
 import torch.nn as nn
@@ -787,8 +787,8 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-device = torch.device(os.environ.get("ML_CATALOGUE_DEVICE", "cpu"))
-QUICK = os.environ.get("DATASET_MODE", "quick") == "quick"
+device = torch.device(DEVICE)
+QUICK = MODE == "quick"
 
 # ============================================================
 # Simple CartPole Environment (no gym dependency)

@@ -43,7 +43,6 @@ Run the code to see a pure-Python experiment tracker that logs runs to JSON and 
 `;
 
 const experimentTrackingCode = `import json
-import os
 import random
 
 random.seed(42)

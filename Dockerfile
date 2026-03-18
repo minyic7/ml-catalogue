@@ -33,7 +33,7 @@ RUN groupadd --gid 1000 appuser && \
 # Copy backend dependency files and install
 COPY backend/pyproject.toml backend/uv.lock ./
 RUN --mount=type=cache,id=uv,target=/root/.cache/uv \
-    uv sync --frozen --no-dev
+    uv sync --frozen --no-dev --extra boosting
 
 # Copy backend source
 COPY backend/ .

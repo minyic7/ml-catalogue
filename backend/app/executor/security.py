@@ -86,6 +86,9 @@ ALLOWED_MODULES: frozenset[str] = frozenset(
         "secrets",
         "imblearn",
         "imbalanced-learn",
+        "xgboost",
+        "lightgbm",
+        "catboost",
         # Preamble internals (builtins intentionally excluded — user code
         # must not access builtins directly as it enables exec/eval bypass)
         "ml_catalogue_runtime",

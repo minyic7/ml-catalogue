@@ -138,7 +138,7 @@ for iteration in range(n_iter):
 
     # Limit displacement by temperature
     disp_norm = np.sqrt((displacement ** 2).sum(axis=1, keepdims=True) + 1e-6)
-    pos += displacement / disp_norm * min(temp, disp_norm).clip(max=temp)
+    pos += displacement / disp_norm * np.minimum(temp, disp_norm)
     temp *= 0.95
 
 # --- Plot ---

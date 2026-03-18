@@ -55,6 +55,17 @@ export default function PageView() {
     }
   }, [output]);
 
+  // Reset execution state when navigating between pages
+  useEffect(() => {
+    setOutput(null);
+    setExecutionTime(null);
+    setIsLoading(false);
+    setElapsedSeconds(0);
+    setTimeoutWarning(false);
+    abortControllerRef.current?.abort();
+    clearTimer();
+  }, [levelSlug, chapterSlug, pageSlug, clearTimer]);
+
   const level = CONTENT_STRUCTURE.find((l) => l.slug === levelSlug);
   const chapter = level?.chapters.find((c) => c.slug === chapterSlug);
   const page = chapter?.pages.find((p) => p.slug === pageSlug);

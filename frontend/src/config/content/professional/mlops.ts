@@ -62,9 +62,8 @@ class ExperimentTracker:
         self.runs.append(run)
         return run
 
-    def save(self, path):
-        with open(path, "w") as f:
-            json.dump(self.runs, f, indent=2)
+    def to_json(self):
+        return json.dumps(self.runs, indent=2)
 
     def best_run(self, metric, minimize=True):
         key = (min if minimize else max)
@@ -99,12 +98,12 @@ for name, params in configs:
     tracker.log_run(name, params, {"accuracy": round(acc, 4), "loss": round(loss, 4)})
 
 tracker.summary()
-tracker.save("experiment_log.json")
+log_json = tracker.to_json()
+print(f"\\nExperiment log (JSON):\\n{log_json[:200]}...")
 
 best = tracker.best_run("loss", minimize=True)
 print(f"\\nBest run (lowest loss): #{best['run_id']} '{best['name']}' "
       f"-> loss={best['metrics']['loss']}, acc={best['metrics']['accuracy']}")
-print(f"\\nExperiment log saved to experiment_log.json")
 `;
 
 const modelRegistryMarkdown = `

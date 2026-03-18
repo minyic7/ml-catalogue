@@ -85,7 +85,7 @@ where Offset and Factor are chosen so that a target score (e.g., 600) correspond
 Run the code to build a credit scorecard on synthetic loan data: compute WoE/IV for feature selection, train logistic regression, and output scorecard points.
 `;
 
-const creditRiskCode = `import os
+const creditRiskCode = `from ml_catalogue_runtime import MODE
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
@@ -93,7 +93,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score
 
 np.random.seed(42)
-MODE = os.environ.get("ML_CATALOGUE_MODE", "quick")
 
 # === Generate Synthetic Loan Dataset ===
 n = 2000 if MODE == "full" else 800
@@ -333,7 +332,7 @@ Lowering $\\tau$ catches more fraud (higher recall) but increases false positive
 Run the code to build a fraud detection pipeline on synthetic transaction data: feature engineering, XGBoost model training, and threshold tuning with precision-recall analysis.
 `;
 
-const fraudDetectionCode = `import os
+const fraudDetectionCode = `from ml_catalogue_runtime import MODE
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -342,7 +341,6 @@ from sklearn.metrics import (precision_recall_curve, average_precision_score,
 from xgboost import XGBClassifier
 
 np.random.seed(42)
-MODE = os.environ.get("ML_CATALOGUE_MODE", "quick")
 
 # === Generate Synthetic Transaction Data ===
 n_txn = 5000 if MODE == "full" else 2000
@@ -571,7 +569,7 @@ AML regulations (BSA/USA PATRIOT Act, EU AMLD6, FATF recommendations) require fi
 Run the code to build a simple AML transaction monitoring system: anomaly detection on synthetic wire transfers with cluster-based suspicious activity identification.
 `;
 
-const amlCode = `import os
+const amlCode = `from ml_catalogue_runtime import MODE
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
@@ -579,7 +577,6 @@ from sklearn.ensemble import IsolationForest
 from sklearn.cluster import DBSCAN
 
 np.random.seed(42)
-MODE = os.environ.get("ML_CATALOGUE_MODE", "quick")
 
 # === Generate Synthetic Wire Transfer Data ===
 n_txn = 3000 if MODE == "full" else 1200
@@ -1030,7 +1027,7 @@ $$\\text{PSI} > 0.25 \\implies \\text{check CSI for each feature} \\implies \\te
 Run the code to compute all four metrics (KS, Gini, PSI, CSI) on a synthetic credit scoring dataset with simulated population drift, and visualise the KS curve, ROC/Gini, and PSI distribution comparison.
 `;
 
-const bankingMetricsCode = `import os
+const bankingMetricsCode = `from ml_catalogue_runtime import MODE
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
@@ -1038,7 +1035,6 @@ from sklearn.metrics import roc_curve, roc_auc_score
 import matplotlib.pyplot as plt
 
 np.random.seed(42)
-MODE = os.environ.get("ML_CATALOGUE_MODE", "quick")
 
 n_dev = 3000 if MODE == "full" else 1000
 n_prod = 3000 if MODE == "full" else 1000

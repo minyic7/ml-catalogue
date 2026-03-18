@@ -49,7 +49,7 @@ $$D_{\\text{KL}} = -\\frac{1}{2} \\sum_{j=1}^{d} \\left(1 + \\log \\sigma_j^2 - 
 VAEs give us a smooth, continuous latent space where interpolation is meaningful — walking between two points in latent space produces smooth transitions in data space. Run the code to train a VAE on MNIST and visualise reconstructions and latent space interpolation.
 `;
 
-const vaeCode = `import os
+const vaeCode = `from ml_catalogue_runtime import MODE, DEVICE
 import numpy as np
 import torch
 import torch.nn as nn
@@ -59,8 +59,8 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-device = torch.device(os.environ.get("ML_CATALOGUE_DEVICE", "cpu"))
-QUICK = os.environ.get("DATASET_MODE", "quick") == "quick"
+device = torch.device(DEVICE)
+QUICK = MODE == "quick"
 
 # ============================================================
 # Load MNIST data (subset for speed)
@@ -287,7 +287,7 @@ Mitigation strategies include:
 GANs can produce remarkably realistic synthetic data and are the basis for style transfer, image super-resolution, and data augmentation. Run the code to train a simple GAN on MNIST and watch the quality of generated digits improve across training.
 `;
 
-const ganCode = `import os
+const ganCode = `from ml_catalogue_runtime import MODE, DEVICE
 import numpy as np
 import torch
 import torch.nn as nn
@@ -297,8 +297,8 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-device = torch.device(os.environ.get("ML_CATALOGUE_DEVICE", "cpu"))
-QUICK = os.environ.get("DATASET_MODE", "quick") == "quick"
+device = torch.device(DEVICE)
+QUICK = MODE == "quick"
 
 # ============================================================
 # Load MNIST data (subset)
@@ -516,7 +516,7 @@ To generate a new sample:
 Diffusion models are the engine behind modern image generators (DALL-E, Stable Diffusion, Midjourney). Run the code to see a simplified diffusion model learn to denoise 2D data — watch it recover structure from pure noise step by step.
 `;
 
-const diffusionCode = `import os
+const diffusionCode = `from ml_catalogue_runtime import MODE, DEVICE
 import numpy as np
 import torch
 import torch.nn as nn
@@ -525,8 +525,8 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-device = torch.device(os.environ.get("ML_CATALOGUE_DEVICE", "cpu"))
-QUICK = os.environ.get("DATASET_MODE", "quick") == "quick"
+device = torch.device(DEVICE)
+QUICK = MODE == "quick"
 
 # ============================================================
 # Generate 2D dataset: concentric circles

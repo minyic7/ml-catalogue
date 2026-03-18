@@ -68,13 +68,11 @@ Its eigenvalues lie in $[0, 2]$ and its eigenvectors form a basis for signals on
 | **Bipartite** | Nodes split into two disjoint sets; edges only between sets |
 
 Run the code to build the Zachary Karate Club graph, visualise its adjacency matrix as a heatmap, and display the graph using a spring layout.`,
-      codeSnippet: `import os
+      codeSnippet: `from ml_catalogue_runtime import MODE
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-
-MODE = os.environ.get("ML_CATALOGUE_MODE", "quick")
 
 # --- Zachary Karate Club adjacency list ---
 # 34 nodes (members), edges represent social ties
@@ -230,7 +228,7 @@ Each GCN layer lets information flow one hop. With $k$ layers, each node's repre
 The symmetric normalisation $\\tilde{D}^{-1/2} \\tilde{A} \\tilde{D}^{-1/2}$ is equivalent to averaging neighbour features weighted by inverse degree — a form of **Laplacian smoothing**. This is a low-pass filter on the graph that encourages connected nodes to have similar representations, which is exactly what we want for tasks like node classification.
 
 Run the code to train a 2-layer GCN from scratch on the Karate Club dataset and visualise the learned node embeddings.`,
-      codeSnippet: `import os
+      codeSnippet: `from ml_catalogue_runtime import MODE, DEVICE
 import numpy as np
 import torch
 import torch.nn as nn
@@ -239,8 +237,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-device = torch.device(os.environ.get("ML_CATALOGUE_DEVICE", "cpu"))
-MODE = os.environ.get("ML_CATALOGUE_MODE", "quick")
+device = torch.device(DEVICE)
 
 # --- Build Karate Club graph ---
 edges = [
@@ -453,7 +450,7 @@ $$
 where $u$ is a neighbour, $v_n$ is a negative sample, and $Q$ is the number of negative samples.
 
 Run the code to implement GraphSAGE with mean and pool aggregators on a synthetic community graph and compare their node classification performance.`,
-      codeSnippet: `import os
+      codeSnippet: `from ml_catalogue_runtime import MODE, DEVICE
 import numpy as np
 import torch
 import torch.nn as nn
@@ -462,8 +459,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-device = torch.device(os.environ.get("ML_CATALOGUE_DEVICE", "cpu"))
-MODE = os.environ.get("ML_CATALOGUE_MODE", "quick")
+device = torch.device(DEVICE)
 
 # --- Generate synthetic community graph ---
 np.random.seed(42)
@@ -714,7 +710,7 @@ $$
 Attention allows the model to perform **anisotropic** message passing — each neighbour can contribute differently based on feature similarity. This is especially valuable when graph structure is noisy or when edge importance varies significantly.
 
 Run the code to implement a multi-head GAT from scratch, train it on the Karate Club graph, and visualise the learned attention weights as an edge heatmap.`,
-      codeSnippet: `import os
+      codeSnippet: `from ml_catalogue_runtime import MODE, DEVICE
 import numpy as np
 import torch
 import torch.nn as nn
@@ -723,8 +719,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-device = torch.device(os.environ.get("ML_CATALOGUE_DEVICE", "cpu"))
-MODE = os.environ.get("ML_CATALOGUE_MODE", "quick")
+device = torch.device(DEVICE)
 
 # --- Build Karate Club graph ---
 edges = [

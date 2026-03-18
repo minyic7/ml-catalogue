@@ -652,10 +652,9 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.calibration import calibration_curve
 from sklearn.metrics import (precision_recall_curve, average_precision_score,
                              brier_score_loss, roc_auc_score)
-import os, base64, io
+from ml_catalogue_runtime import MODE
 
-mode = os.environ.get("ML_CATALOGUE_MODE", "quick")
-n_samples = 2000 if mode == "quick" else 10000
+n_samples = 2000 if MODE == "quick" else 10000
 
 # --- Synthetic imbalanced dataset (95% negative, 5% positive) ---
 X, y = make_classification(n_samples=n_samples, n_features=15,

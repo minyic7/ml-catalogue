@@ -78,10 +78,10 @@ from sklearn.metrics import accuracy_score, roc_auc_score
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import GradientBoostingClassifier
 import matplotlib.pyplot as plt
-import os
+from ml_catalogue_runtime import MODE
 
 # --- Dataset: synthetic fraud detection ---
-mode = os.environ.get("ML_CATALOGUE_MODE", "quick")
+mode = MODE
 n_samples = 1000 if mode == "quick" else 10000
 n_rounds = 30 if mode == "quick" else 100
 
@@ -234,10 +234,10 @@ from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import (accuracy_score, roc_auc_score,
                               classification_report, confusion_matrix)
 import matplotlib.pyplot as plt
-import os
+from ml_catalogue_runtime import MODE
 
 # --- Synthetic fraud dataset ---
-mode = os.environ.get("ML_CATALOGUE_MODE", "quick")
+mode = MODE
 n_samples = 1000 if mode == "quick" else 15000
 n_rounds = 50 if mode == "quick" else 300
 
@@ -408,10 +408,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import (accuracy_score, roc_auc_score,
                               classification_report, roc_curve)
 import matplotlib.pyplot as plt
-import os
+from ml_catalogue_runtime import MODE
 
 # --- Synthetic fraud dataset ---
-mode = os.environ.get("ML_CATALOGUE_MODE", "quick")
+mode = MODE
 n_samples = 1000 if mode == "quick" else 15000
 n_rounds = 50 if mode == "quick" else 300
 
@@ -581,10 +581,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import (accuracy_score, roc_auc_score,
                               classification_report, confusion_matrix)
 import matplotlib.pyplot as plt
-import os
+from ml_catalogue_runtime import MODE
 
 # --- Synthetic transaction dataset with categorical features ---
-mode = os.environ.get("ML_CATALOGUE_MODE", "quick")
+mode = MODE
 n_samples = 1000 if mode == "quick" else 15000
 n_rounds = 50 if mode == "quick" else 300
 

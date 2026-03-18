@@ -9,12 +9,24 @@ export interface OutputData {
 
 interface OutputAreaProps {
   output: OutputData | null
+  isLoading?: boolean
 }
 
-export function OutputArea({ output }: OutputAreaProps) {
+export function OutputArea({ output, isLoading }: OutputAreaProps) {
+  if (isLoading) {
+    return (
+      <div className="min-h-[120px] flex items-center justify-center rounded-lg border border-border bg-muted/30 p-6 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <div className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          <span>Running…</span>
+        </div>
+      </div>
+    )
+  }
+
   if (!output) {
     return (
-      <div className="rounded-lg border border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+      <div className="min-h-[120px] flex items-center justify-center rounded-lg border border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
         Run your code to see output here.
       </div>
     )

@@ -585,8 +585,8 @@ from ml_catalogue_runtime import MODE
 
 # --- Synthetic transaction dataset with categorical features ---
 mode = MODE
-n_samples = 1000 if mode == "quick" else 15000
-n_rounds = 50 if mode == "quick" else 300
+n_samples = 400 if mode == "quick" else 15000
+n_rounds = 20 if mode == "quick" else 300
 
 np.random.seed(42)
 
@@ -667,25 +667,28 @@ print("Classification Report:")
 print(classification_report(y_test, y_pred,
       target_names=["Legit", "Fraud"], zero_division=0))
 
-# --- SHAP-based feature importance ---
-shap_values = model.get_feature_importance(test_pool, type="ShapValues")
-# Last column is base value; remove it
-shap_importance = np.abs(shap_values[:, :-1]).mean(axis=0)
+# --- Feature importance (SHAP in full mode, PredictionValuesChange in quick) ---
+if mode == "quick":
+    importance = model.get_feature_importance(train_pool)
+    importance_label = "PredictionValuesChange"
+else:
+    shap_vals = model.get_feature_importance(test_pool, type="ShapValues")
+    importance = np.abs(shap_vals[:, :-1]).mean(axis=0)
+    importance_label = "SHAP"
 
 # --- Visualizations ---
-fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 
-# Feature importance (SHAP)
-sorted_idx = np.argsort(shap_importance)
-axes[0].barh(range(len(feature_names)), shap_importance[sorted_idx],
+# Feature importance
+sorted_idx = np.argsort(importance)
+axes[0].barh(range(len(feature_names)), importance[sorted_idx],
              color=["coral" if feature_names[i] in cat_features
                     else "steelblue" for i in sorted_idx])
 axes[0].set_yticks(range(len(feature_names)))
 axes[0].set_yticklabels([feature_names[i] for i in sorted_idx])
-axes[0].set_xlabel("Mean |SHAP Value|")
-axes[0].set_title("CatBoost Feature Importance (SHAP)")
+axes[0].set_xlabel(f"Importance ({importance_label})")
+axes[0].set_title(f"CatBoost Feature Importance ({importance_label})")
 axes[0].grid(True, alpha=0.3, axis="x")
-# Legend
 from matplotlib.patches import Patch
 axes[0].legend(handles=[Patch(color="steelblue", label="Numerical"),
                          Patch(color="coral", label="Categorical")],
@@ -706,28 +709,6 @@ for i in range(2):
         axes[1].text(j, i, str(cm[i, j]), ha="center", va="center",
                      fontsize=16, color="white" if cm[i, j] > cm.max()/2 else "black")
 plt.colorbar(im, ax=axes[1], fraction=0.046)
-
-# SHAP summary for top features (bee swarm approximation)
-top_n = 8
-top_feat_idx = np.argsort(shap_importance)[-top_n:]
-for rank, feat_i in enumerate(top_feat_idx):
-    vals = shap_values[:, feat_i]
-    feat_vals = X_test.iloc[:, feat_i]
-    if feature_names[feat_i] in cat_features:
-        color = "coral"
-    else:
-        # Color by feature value (normalized)
-        fv = pd.to_numeric(feat_vals, errors="coerce").values
-        fv_norm = (fv - np.nanmin(fv)) / (np.nanmax(fv) - np.nanmin(fv) + 1e-10)
-        color = plt.cm.coolwarm(fv_norm)
-    axes[2].scatter(vals, np.full_like(vals, rank) + np.random.normal(0, 0.1, len(vals)),
-                    c=color, alpha=0.3, s=8, rasterized=True)
-axes[2].set_yticks(range(top_n))
-axes[2].set_yticklabels([feature_names[i] for i in top_feat_idx])
-axes[2].set_xlabel("SHAP Value")
-axes[2].set_title("SHAP Summary (Top Features)")
-axes[2].axvline(0, color="black", linewidth=0.5)
-axes[2].grid(True, alpha=0.3, axis="x")
 
 plt.tight_layout()
 plt.show()`,

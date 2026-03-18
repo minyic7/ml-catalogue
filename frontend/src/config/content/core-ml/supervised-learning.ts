@@ -595,7 +595,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 models = {
     "Decision Tree": DecisionTreeClassifier(random_state=42),
     "Random Forest": RandomForestClassifier(
-        n_estimators=100, random_state=42, n_jobs=-1),
+        n_estimators=100, random_state=42),
     "Gradient Boosting": GradientBoostingClassifier(
         n_estimators=100, learning_rate=0.1, max_depth=3,
         random_state=42),

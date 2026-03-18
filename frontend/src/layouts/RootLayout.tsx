@@ -14,7 +14,7 @@ import Sidebar from '@/components/Sidebar';
 import SearchDialog from '@/components/SearchDialog';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import ThemeToggle from '@/components/ThemeToggle';
-import { QAAssistant, useQATools } from '@/components/qa-assistant';
+import { QAAssistant, useQATools, ChatDialog } from '@/components/qa-assistant';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -111,6 +111,21 @@ function QAHeaderButtons() {
   );
 }
 
+function InlineChatPanel() {
+  const { chatOpen, onChatClose, initialContext, pageContext } = useQATools();
+  if (!chatOpen) return null;
+  return (
+    <div className="relative shrink-0">
+      <ChatDialog
+        isOpen={chatOpen}
+        onClose={onChatClose}
+        initialContext={initialContext}
+        pageContext={pageContext}
+      />
+    </div>
+  );
+}
+
 export default function RootLayout() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -181,11 +196,13 @@ export default function RootLayout() {
           </SheetContent>
         </Sheet>
 
-        <main className="flex-1 overflow-y-scroll overscroll-y-none p-4 lg:p-6" style={{ scrollbarGutter: "stable" }}>
+        <main className="min-w-0 flex-1 overflow-y-scroll overscroll-y-none p-4 lg:p-6" style={{ scrollbarGutter: "stable" }}>
           <ErrorBoundary>
             <Outlet context={{ openSearch: () => setSearchOpen(true) }} />
           </ErrorBoundary>
         </main>
+
+        <InlineChatPanel />
       </div>
 
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />

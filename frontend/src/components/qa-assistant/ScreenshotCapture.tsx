@@ -101,7 +101,9 @@ function ScreenshotCapture({ onCapture, onCancel }: ScreenshotCaptureProps) {
 
       const dataUri = canvas.toDataURL("image/png")
       onCapture(dataUri)
-    } catch {
+    } catch (err) {
+      console.error("Screenshot capture failed:", err)
+      alert("Screenshot capture failed. Please try again.")
       onCancel()
     }
   }, [selection, onCapture, onCancel])
